@@ -23,7 +23,7 @@ authRouter.post("/login", async (req, res) => {
   res.cookie(config.sessionCookieName, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: config.cookieSecure,
     maxAge: 1000 * 60 * 60 * 24 * 30
   });
 
@@ -71,7 +71,7 @@ authRouter.post("/register", async (req, res) => {
     res.cookie(config.sessionCookieName, token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: false,
+      secure: config.cookieSecure,
       maxAge: 1000 * 60 * 60 * 24 * 30
     });
 

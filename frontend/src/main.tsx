@@ -444,7 +444,7 @@ function App() {
 
         <div className={systemStatus?.zookeeper.registered ? "system-status online" : "system-status"}>
           <span />
-          ZooKeeper {systemStatus?.zookeeper.registered ? "conectado" : "indisponivel"}
+          ZooKeeper {systemStatus?.zookeeper.registered ? `conectado${systemStatus.zookeeper.aclEnabled ? " + ACL" : ""}` : "indisponivel"}
         </div>
 
         <section className="sidebar-section">

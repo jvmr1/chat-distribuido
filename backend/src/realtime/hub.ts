@@ -1,4 +1,5 @@
 import http from "node:http";
+import https from "node:https";
 import { WebSocketServer, WebSocket } from "ws";
 import { findUserBySession } from "../auth/session";
 import { config } from "../config";
@@ -15,7 +16,7 @@ const socketsByUser = new Map<string, Set<WebSocket>>();
 const offlineInProgress = new Set<string>();
 const presenceRetryTimers = new Map<string, NodeJS.Timeout>();
 
-export function attachRealtime(server: http.Server) {
+export function attachRealtime(server: http.Server | https.Server) {
   // Cada backend guarda apenas os WebSockets conectados nele.
   // Quando o usuario esta em outro backend, o roteamento usa a presenca no ZooKeeper.
   const wss = new WebSocketServer({ server, path: "/ws" });
@@ -176,17 +177,37 @@ export async function publishToCluster(event: unknown) {
 }
 
 async function postInternalEvent(internalUrl: string, body: unknown) {
-  try {
-    await fetch(`${internalUrl}/internal/events`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+  const payload = JSON.stringify(body);
+  const url = new URL("/internal/events", internalUrl);
+  const transport = url.protocol === "https:" ? https : http;
+
+  await new Promise<void>((resolve) => {
+    const request = transport.request(
+      {
+        hostname: url.hostname,
+        port: url.port,
+        path: url.pathname,
+        method: "POST",
+        rejectUnauthorized: config.internalTlsRejectUnauthorized,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload)
+        }
       },
-      body: JSON.stringify(body)
+      (response) => {
+        response.resume();
+        response.on("end", resolve);
+      }
+    );
+
+    request.on("error", (error) => {
+      console.warn(`Failed to route internal event to ${internalUrl}`, error);
+      resolve();
     });
-  } catch (error) {
-    console.warn(`Failed to route internal event to ${internalUrl}`, error);
-  }
+
+    request.write(payload);
+    request.end();
+  });
 }
 
 async function markUserOffline(userId: string, lastSeenAt: string, options: { broadcast: boolean }) {

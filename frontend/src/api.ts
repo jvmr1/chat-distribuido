@@ -58,6 +58,7 @@ export type SystemStatus = {
     path: string | null;
     requestedNodeId: string | null;
     host: string;
+    aclEnabled: boolean;
     lastError: string | null;
   };
 };

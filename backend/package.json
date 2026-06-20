@@ -4,7 +4,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "node dev.cjs",
     "build": "tsc",
     "start": "node dist/server.js",
     "db:migrate": "tsx src/db/migrate.ts",

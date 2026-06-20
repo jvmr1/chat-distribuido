@@ -31,16 +31,28 @@ export function registerNodeInZookeeper() {
   // 1. registrar backends vivos em /chat/nodes;
   // 2. eleger o lider pelo menor znode sequencial;
   // 3. registrar presenca de usuarios em /chat/presence.
+  if (config.zookeeperAclEnabled && !config.zookeeperAuth) {
+    throw new Error("ZOOKEEPER_ACL_ENABLED requires ZOOKEEPER_AUTH.");
+  }
+
   const client = zookeeper.createClient(config.zookeeperHost, {
     sessionTimeout: 5000
   });
+  if (config.zookeeperAuth) {
+    client.addAuthInfo("digest", Buffer.from(config.zookeeperAuth));
+  }
   activeClient = client;
 
-  client.once("connected", () => {
+  client.on("connected", () => {
     connected = true;
     lastError = null;
 
-    client.mkdirp("/chat/nodes", (mkdirError) => {
+    if (registered && registeredPath) {
+      watchClusterNodes(client);
+      return;
+    }
+
+    mkdirpNode(client, "/chat/nodes", (mkdirError) => {
       if (mkdirError) {
         registered = false;
         lastError = mkdirError.message;
@@ -56,13 +68,13 @@ export function registerNodeInZookeeper() {
           requestedNodeId: config.nodeId,
           nodeId: config.nodeId,
           port: config.port,
-          internalUrl: `http://localhost:${config.port}`,
+          internalUrl: `${internalProtocol()}://localhost:${config.port}`,
           startedAt: new Date().toISOString()
         } satisfies NodeData)
       );
       const createMode = config.nodeId ? zookeeper.CreateMode.EPHEMERAL : zookeeper.CreateMode.EPHEMERAL_SEQUENTIAL;
 
-      client.create(path, payload, createMode, (createError, createdPath) => {
+      createNode(client, path, payload, createMode, (createError, createdPath) => {
         if (createError && createError.getCode() === zookeeper.Exception.NODE_EXISTS) {
           registered = false;
           registeredNodeId = null;
@@ -86,6 +98,7 @@ export function registerNodeInZookeeper() {
         registered = true;
         console.log(`Registered backend node in ZooKeeper: ${registeredPath}`);
         ensureBasePaths(client);
+        applyBaseAcls(client);
         watchClusterNodes(client);
       });
     });
@@ -93,13 +106,32 @@ export function registerNodeInZookeeper() {
 
   client.on("disconnected", () => {
     connected = false;
+    isLeader = false;
+    console.warn("ZooKeeper connection temporarily closed.");
+  });
+
+  client.on("expired", () => {
+    connected = false;
     registered = false;
     registeredNodeId = null;
     registeredPath = null;
     clusterNodes = [];
     leaderNodeId = null;
     isLeader = false;
-    console.warn("ZooKeeper connection closed.");
+    lastError = "ZooKeeper session expired.";
+    console.warn(lastError);
+  });
+
+  client.on("authenticationFailed", () => {
+    connected = false;
+    registered = false;
+    registeredNodeId = null;
+    registeredPath = null;
+    clusterNodes = [];
+    leaderNodeId = null;
+    isLeader = false;
+    lastError = "ZooKeeper authentication failed.";
+    console.error(lastError);
   });
 
   client.connect();
@@ -117,6 +149,7 @@ export function getZookeeperStatus() {
     leaderNodeId,
     isLeader,
     host: config.zookeeperHost,
+    aclEnabled: config.zookeeperAclEnabled,
     lastError
   };
 }
@@ -138,7 +171,7 @@ export async function registerUserPresence(userId: string) {
     JSON.stringify({
       userId,
       nodeId,
-      internalUrl: `http://localhost:${config.port}`,
+      internalUrl: `${internalProtocol()}://localhost:${config.port}`,
       connectedAt: new Date().toISOString()
     } satisfies PresenceData)
   );
@@ -225,10 +258,23 @@ function watchClusterNodes(client: Client) {
 
 function ensureBasePaths(client: Client) {
   for (const path of ["/chat/presence", "/chat/internal"]) {
-    client.mkdirp(path, (error) => {
+    mkdirpNode(client, path, (error) => {
       if (error) {
         lastError = error.message;
         console.error(`ZooKeeper mkdir failed for ${path}`, error);
+      }
+    });
+  }
+}
+
+function applyBaseAcls(client: Client) {
+  if (!config.zookeeperAclEnabled) return;
+
+  for (const path of ["/chat", "/chat/nodes", "/chat/presence", "/chat/internal"]) {
+    client.setACL(path, zookeeper.ACL.CREATOR_ALL_ACL, -1, (error) => {
+      if (error) {
+        lastError = error.message;
+        console.error(`ZooKeeper ACL update failed for ${path}`, error);
       }
     });
   }
@@ -252,7 +298,7 @@ function requireRegisteredNodeId() {
 
 function mkdirpAsync(client: Client, path: string) {
   return new Promise<void>((resolve, reject) => {
-    client.mkdirp(path, (error) => {
+    mkdirpNode(client, path, (error) => {
       if (error) reject(error);
       else resolve();
     });
@@ -261,11 +307,39 @@ function mkdirpAsync(client: Client, path: string) {
 
 function createAsync(client: Client, path: string, data: Buffer, mode: number) {
   return new Promise<string>((resolve, reject) => {
-    client.create(path, data, mode, (error, createdPath) => {
+    createNode(client, path, data, mode, (error, createdPath) => {
       if (error) reject(error);
       else resolve(createdPath ?? path);
     });
   });
+}
+
+function mkdirpNode(client: Client, path: string, callback: (error?: ZooKeeperError) => void) {
+  if (config.zookeeperAclEnabled) {
+    client.mkdirp(path, zookeeper.ACL.CREATOR_ALL_ACL, callback);
+    return;
+  }
+
+  client.mkdirp(path, callback);
+}
+
+function createNode(
+  client: Client,
+  path: string,
+  data: Buffer,
+  mode: number,
+  callback: (error?: ZooKeeperError, createdPath?: string) => void
+) {
+  if (config.zookeeperAclEnabled) {
+    client.create(path, data, zookeeper.ACL.CREATOR_ALL_ACL, mode, callback);
+    return;
+  }
+
+  client.create(path, data, mode, callback);
+}
+
+function internalProtocol() {
+  return config.tlsEnabled ? "https" : "http";
 }
 
 function getChildrenAsync(client: Client, path: string) {

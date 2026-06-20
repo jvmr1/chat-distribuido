@@ -1,9 +1,18 @@
 const http = require("node:http");
+const https = require("node:https");
+const fs = require("node:fs");
 const net = require("node:net");
+const tls = require("node:tls");
 
 // Gateway simples para desenvolvimento local. Ele mantem uma porta fixa para
 // o frontend e distribui HTTP/WebSocket entre backends que responderem /health.
+// Com --tls-cert e --tls-key, a porta do gateway passa a usar HTTPS/WSS.
 const listenPort = Number(readArg("--port") ?? 3000);
+const tlsCertPath = readArg("--tls-cert");
+const tlsKeyPath = readArg("--tls-key");
+const listenProtocol = tlsCertPath && tlsKeyPath ? "https" : "http";
+const targetProtocol = readArg("--target-protocol") ?? "http";
+const rejectUnauthorized = readArg("--target-reject-unauthorized") !== "false";
 const targets = readTargets();
 
 let nextTargetIndex = 0;
@@ -13,7 +22,7 @@ if (targets.length === 0) {
   process.exit(1);
 }
 
-const server = http.createServer((req, res) => {
+const server = createServer((req, res) => {
   proxyHttp(req, res);
 });
 
@@ -22,7 +31,7 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 server.listen(listenPort, () => {
-  console.log(`Dev load balancer listening on http://localhost:${listenPort}`);
+  console.log(`Dev load balancer listening on ${listenProtocol}://localhost:${listenPort}`);
   console.log(`Targets: ${targets.map((target) => `${target.host}:${target.port}`).join(", ")}`);
 });
 
@@ -38,12 +47,14 @@ function proxyHttp(req, res) {
     return;
   }
 
-  const proxyReq = http.request(
+  const transport = targetProtocol === "https" ? https : http;
+  const proxyReq = transport.request(
     {
       host: target.host,
       port: target.port,
       method: req.method,
       path: req.url,
+      rejectUnauthorized,
       headers: {
         ...req.headers,
         host: `${target.host}:${target.port}`
@@ -72,7 +83,10 @@ function proxyWebSocket(req, socket, head) {
     return;
   }
 
-  const backendSocket = net.connect(target.port, target.host, () => {
+  const backendSocket = (targetProtocol === "https"
+    ? tls.connect({ host: target.host, port: target.port, rejectUnauthorized })
+    : net.connect(target.port, target.host)
+  ).on("connect", () => {
     backendSocket.write(`${req.method} ${req.url} HTTP/${req.httpVersion}\r\n`);
 
     for (const [name, value] of Object.entries(req.headers)) {
@@ -102,13 +116,15 @@ function pickHealthyTarget() {
 
 function checkTargets() {
   for (const target of targets) {
-    const req = http.request(
+    const transport = targetProtocol === "https" ? https : http;
+    const req = transport.request(
       {
         host: target.host,
         port: target.port,
         path: "/health",
         method: "GET",
-        timeout: 1000
+        timeout: 1000,
+        rejectUnauthorized
       },
       (res) => {
         target.healthy = (res.statusCode ?? 500) < 500;
@@ -158,4 +174,18 @@ function readTargets() {
   }
 
   return generatedTargets;
+}
+
+function createServer(handler) {
+  if (listenProtocol === "http") {
+    return http.createServer(handler);
+  }
+
+  return https.createServer(
+    {
+      cert: fs.readFileSync(tlsCertPath),
+      key: fs.readFileSync(tlsKeyPath)
+    },
+    handler
+  );
 }

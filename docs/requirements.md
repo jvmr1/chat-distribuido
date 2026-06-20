@@ -52,6 +52,21 @@ leitura devem ser armazenados em PostgreSQL.
 Mensagens enviadas para usuarios desconectados devem permanecer no banco e ser
 exibidas quando o usuario voltar a acessar o sistema.
 
+### RE10 - TLS para HTTP e WebSocket
+
+O sistema deve permitir execucao com TLS, usando HTTPS para requisicoes HTTP e
+WSS para WebSocket quando certificado e chave forem configurados.
+
+### RE11 - Cookies seguros em ambiente TLS
+
+Quando TLS estiver habilitado, os cookies de sessao devem poder ser marcados
+como `secure`, impedindo envio por conexoes nao criptografadas.
+
+### RE12 - ACL no ZooKeeper
+
+O sistema deve permitir configurar autenticacao digest e ACL no ZooKeeper para
+restringir acesso aos znodes de coordenacao do chat.
+
 ## Requisitos de Autenticacao e Sessao
 
 ### RA01 - Login
