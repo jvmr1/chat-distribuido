@@ -14,6 +14,8 @@ conversationsRouter.get("/", async (req, res) => {
   const result = await pool.query(
     `
       SELECT c.id, c.type, c.title, c.created_at, cm.role AS current_user_role,
+        cm.cleared_at,
+        cm.hidden_at,
         direct_user.id AS direct_user_id,
         direct_user.last_seen_at AS direct_user_last_seen_at,
         CASE
@@ -27,6 +29,7 @@ conversationsRouter.get("/", async (req, res) => {
           FROM messages unread_message
           WHERE unread_message.conversation_id = c.id
             AND unread_message.sender_id <> $1
+            AND unread_message.created_at > COALESCE(cm.cleared_at, '-infinity'::timestamptz)
             AND unread_message.created_at > COALESCE(cr.last_read_at, '-infinity'::timestamptz)
         ) AS unread_count
       FROM conversations c
@@ -41,15 +44,20 @@ conversationsRouter.get("/", async (req, res) => {
           AND other_member.removed_at IS NULL
         LIMIT 1
       ) direct_user ON c.type = 'direct'
-      JOIN LATERAL (
+      LEFT JOIN LATERAL (
         SELECT m.body, m.created_at
         FROM messages m
         WHERE m.conversation_id = c.id
+          AND m.created_at > COALESCE(cm.cleared_at, '-infinity'::timestamptz)
         ORDER BY m.created_at DESC
         LIMIT 1
       ) last_message ON true
       WHERE cm.user_id = $1 AND cm.removed_at IS NULL
-      ORDER BY last_message.created_at DESC
+        AND (
+          last_message.created_at IS NOT NULL
+          OR (cm.cleared_at IS NOT NULL AND cm.hidden_at IS NULL)
+        )
+      ORDER BY COALESCE(last_message.created_at, cm.cleared_at, c.created_at) DESC
     `,
     [req.user!.id]
   );
@@ -89,6 +97,10 @@ conversationsRouter.post("/direct", async (req, res) => {
   );
 
   if (existing.rows[0]) {
+    await pool.query(
+      "UPDATE conversation_members SET hidden_at = NULL WHERE conversation_id = $1 AND user_id = $2",
+      [existing.rows[0].id, req.user!.id]
+    );
     return res.status(200).json({ conversationId: existing.rows[0].id });
   }
 
@@ -162,11 +174,13 @@ conversationsRouter.get("/:id/messages", async (req, res) => {
       SELECT m.id, m.body, m.created_at, u.id AS sender_id, u.username, u.display_name
       FROM messages m
       JOIN users u ON u.id = m.sender_id
+      JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = $2
       WHERE m.conversation_id = $1
+        AND m.created_at > COALESCE(cm.cleared_at, '-infinity'::timestamptz)
       ORDER BY m.created_at ASC
       LIMIT 100
     `,
-    [req.params.id]
+    [req.params.id, req.user!.id]
   );
   await markConversationRead(req.params.id, req.user!.id);
 
@@ -204,6 +218,10 @@ conversationsRouter.post("/:id/messages", async (req, res) => {
     display_name: req.user!.displayName
   };
   await markConversationRead(req.params.id, req.user!.id);
+  await pool.query(
+    "UPDATE conversation_members SET hidden_at = NULL WHERE conversation_id = $1 AND removed_at IS NULL",
+    [req.params.id]
+  );
 
   const members = await pool.query(
     "SELECT user_id FROM conversation_members WHERE conversation_id = $1 AND removed_at IS NULL",
@@ -267,6 +285,48 @@ conversationsRouter.post("/:id/members", async (req, res) => {
   const members = await activeMemberIds(req.params.id);
   await publishToUsersDistributed([...new Set([...members, userId])], {
     type: "group.members.changed",
+    conversationId: req.params.id
+  });
+
+  return res.status(204).send();
+});
+
+conversationsRouter.post("/:id/clear", async (req, res) => {
+  const allowed = await ensureMember(req.params.id, req.user!.id);
+  if (!allowed) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
+
+  await pool.query(
+    `
+      UPDATE conversation_members
+      SET cleared_at = now(), hidden_at = NULL
+      WHERE conversation_id = $1 AND user_id = $2 AND removed_at IS NULL
+    `,
+    [req.params.id, req.user!.id]
+  );
+  await markConversationRead(req.params.id, req.user!.id);
+  await publishToUsersDistributed([req.user!.id], {
+    type: "conversation.cleared",
+    conversationId: req.params.id
+  });
+
+  return res.status(204).send();
+});
+
+conversationsRouter.delete("/:id/me", async (req, res) => {
+  const allowed = await ensureMember(req.params.id, req.user!.id);
+  if (!allowed) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
+
+  await pool.query(
+    `
+      UPDATE conversation_members
+      SET cleared_at = now(), hidden_at = now()
+      WHERE conversation_id = $1 AND user_id = $2 AND removed_at IS NULL
+    `,
+    [req.params.id, req.user!.id]
+  );
+  await markConversationRead(req.params.id, req.user!.id);
+  await publishToUsersDistributed([req.user!.id], {
+    type: "conversation.hidden",
     conversationId: req.params.id
   });
 

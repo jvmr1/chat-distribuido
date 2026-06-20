@@ -27,6 +27,8 @@ export type Conversation = {
   display_title: string | null;
   current_user_role: "owner" | "member";
   created_at: string;
+  cleared_at: string | null;
+  hidden_at: string | null;
   last_message: string | null;
   last_message_at: string | null;
   unread_count: number;
@@ -151,6 +153,14 @@ export const api = {
     }),
   deleteConversation: (conversationId: string) =>
     request<void>(`/conversations/${conversationId}`, {
+      method: "DELETE"
+    }),
+  clearConversation: (conversationId: string) =>
+    request<void>(`/conversations/${conversationId}/clear`, {
+      method: "POST"
+    }),
+  hideConversation: (conversationId: string) =>
+    request<void>(`/conversations/${conversationId}/me`, {
       method: "DELETE"
     })
 };

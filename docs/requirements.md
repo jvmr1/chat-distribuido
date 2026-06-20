@@ -52,20 +52,54 @@ leitura devem ser armazenados em PostgreSQL.
 Mensagens enviadas para usuarios desconectados devem permanecer no banco e ser
 exibidas quando o usuario voltar a acessar o sistema.
 
-### RE10 - TLS para HTTP e WebSocket
+### RE10 - TLS para backend, gateway, frontend e WebSocket
 
-O sistema deve permitir execucao com TLS, usando HTTPS para requisicoes HTTP e
-WSS para WebSocket quando certificado e chave forem configurados.
+O sistema deve permitir execucao local com TLS, usando HTTPS para backend,
+gateway e frontend, alem de WSS para WebSocket.
 
 ### RE11 - Cookies seguros em ambiente TLS
 
 Quando TLS estiver habilitado, os cookies de sessao devem poder ser marcados
 como `secure`, impedindo envio por conexoes nao criptografadas.
 
-### RE12 - ACL no ZooKeeper
+### RE12 - Certificado local confiavel
+
+O ambiente de desenvolvimento deve aceitar certificados locais em PEM,
+preferencialmente gerados por `mkcert`, contendo SAN para `localhost`,
+`127.0.0.1` e `::1`.
+
+### RE13 - Geracao automatica de certificado local
+
+Quando os arquivos de certificado local nao existirem, o comando de
+desenvolvimento deve tentar gera-los automaticamente em `infra/certs`.
+
+### RE14 - CORS compativel com HTTP e HTTPS locais
+
+O backend deve aceitar as origens locais configuradas para o frontend, incluindo
+`https://localhost:5173` e `http://localhost:5173`, retornando a origem correta
+na resposta CORS.
+
+### RE15 - ACL no ZooKeeper
 
 O sistema deve permitir configurar autenticacao digest e ACL no ZooKeeper para
 restringir acesso aos znodes de coordenacao do chat.
+
+### RE16 - ACL do ZooKeeper habilitada por padrao no desenvolvimento
+
+O comando de desenvolvimento do backend deve habilitar ACL local do ZooKeeper
+por padrao, com possibilidade de desativacao por variavel de ambiente.
+
+### RE17 - Reconexao e status correto do ZooKeeper
+
+O backend deve tratar eventos de conexao, desconexao temporaria, expiracao de
+sessao e falha de autenticacao do ZooKeeper, mantendo o indicador de status
+coerente com o estado real do cliente.
+
+### RE18 - Documentacao por diagramas
+
+O projeto deve manter diagramas da arquitetura distribuida, incluindo usuarios,
+gateway, backends, PostgreSQL, znodes do ZooKeeper, presenca, envio de mensagem
+e failover.
 
 ## Requisitos de Autenticacao e Sessao
 
@@ -203,6 +237,33 @@ participantes e apagar o grupo.
 Usuarios comuns de um grupo devem poder enviar mensagens, mas nao gerenciar
 participantes nem apagar o grupo.
 
+### RC13 - Limpeza individual de historico
+
+O sistema deve permitir que um usuario limpe o historico visivel de uma
+conversa apenas para si, sem remover as mensagens para os demais participantes.
+
+### RC14 - Conversa limpa permanece na lista
+
+Ao limpar o historico individualmente, a conversa deve permanecer na barra
+lateral do usuario, mas sem mensagens visiveis anteriores ao momento da
+limpeza.
+
+### RC15 - Remocao individual da lista de conversas
+
+O sistema deve permitir que um usuario remova uma conversa da sua propria barra
+lateral, tambem limpando o historico visivel apenas para ele.
+
+### RC16 - Remocao individual nao afeta outros participantes
+
+Quando um usuario remover uma conversa da propria lista, os demais
+participantes devem continuar vendo a conversa e o historico normalmente.
+
+### RC17 - Retorno de conversa removida por nova mensagem
+
+Se uma conversa removida da lista receber nova mensagem, ela deve voltar a
+aparecer para os participantes ativos que a haviam removido, mostrando apenas
+as mensagens novas para cada usuario.
+
 ## Requisitos de Mensagens
 
 ### RM01 - Visualizacao de historico
@@ -296,17 +357,39 @@ para novo grupo.
 A interface deve exibir indicador visual informando se o backend esta conectado
 e registrado no ZooKeeper.
 
-### RU09 - Reconnection automatica do WebSocket
+### RU09 - Indicador de ACL do ZooKeeper
+
+Quando a ACL do ZooKeeper estiver habilitada, a interface deve indicar isso no
+status do ZooKeeper.
+
+### RU10 - Reconnection automatica do WebSocket
 
 Se o WebSocket cair, o frontend deve tentar reconectar automaticamente,
 avancando para outro endpoint quando aplicavel.
 
-### RU10 - Comando unico do frontend em desenvolvimento
+### RU11 - Comando unico do frontend em desenvolvimento
 
-O comando `npm run dev` do frontend deve iniciar tanto o Vite quanto o gateway
-local de desenvolvimento.
+O comando `npm run dev` do frontend deve iniciar tanto o Vite em HTTPS quanto o
+gateway local de desenvolvimento em HTTPS.
 
-### RU11 - Comando unico do backend em desenvolvimento
+### RU12 - Comando unico do backend em desenvolvimento
 
-O comando `npm run dev` do backend deve iniciar uma instancia em porta livre,
-sem exigir que o usuario escolha manualmente portas para multiplos nos.
+O comando `npm run dev` do backend deve iniciar uma instancia HTTPS em porta
+livre, sem exigir que o usuario escolha manualmente portas para multiplos nos.
+
+### RU13 - Confirmacao para acoes destrutivas
+
+Acoes como limpar historico, remover conversa da lista e apagar grupo devem
+exibir um modal de confirmacao com opcoes de confirmar ou cancelar.
+
+### RU14 - Ocultar compositor sem conversa selecionada
+
+Quando nenhuma conversa estiver selecionada, a interface nao deve exibir a
+caixa de texto de envio de mensagem, evitando que o usuario tente enviar sem
+destino.
+
+### RU15 - Alternancia entre tema claro e escuro
+
+O sistema deve permitir alternar entre tema claro e tema escuro, mantendo a
+preferencia escolhida apos atualizar a pagina. O controle de tema deve ficar
+compacto ao lado do botao de logout, sem ocupar espaco vertical extra.

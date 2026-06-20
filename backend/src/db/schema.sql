@@ -37,8 +37,13 @@ CREATE TABLE IF NOT EXISTS conversation_members (
   role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member')),
   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   removed_at TIMESTAMPTZ,
+  cleared_at TIMESTAMPTZ,
+  hidden_at TIMESTAMPTZ,
   PRIMARY KEY (conversation_id, user_id)
 );
+
+ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS cleared_at TIMESTAMPTZ;
+ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
 
 -- Mensagens persistidas; a entrega offline acontece porque o historico fica no banco.
 CREATE TABLE IF NOT EXISTS messages (

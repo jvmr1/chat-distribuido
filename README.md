@@ -22,6 +22,7 @@ As mensagens e sessoes ficam persistidas no PostgreSQL.
 
 Veja tambem [docs/project-structure.md](docs/project-structure.md).
 Os requisitos atuais estao em [docs/requirements.md](docs/requirements.md).
+Os diagramas da arquitetura estao em [docs/diagrams.md](docs/diagrams.md).
 
 ## Como rodar
 

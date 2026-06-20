@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Eye, EyeOff, LogOut, MessageSquarePlus, Send, Trash2, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
+import { Eraser, Eye, EyeOff, LogOut, MessageSquarePlus, Moon, Send, Sun, Trash2, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
 import { advanceApiUrl, api, Conversation, GroupMember, Message, SystemStatus, User, websocketUrl } from "./api";
 import "./styles.css";
+
+type PendingAction = "clearConversation" | "hideConversation" | "deleteGroup" | null;
+type Theme = "light" | "dark";
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,9 +31,16 @@ function App() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [showRegisterConfirmation, setShowRegisterConfirmation] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [loading, setLoading] = useState(true);
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottomAfterLoadRef = useRef(false);
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    localStorage.setItem("chat-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     // Restaura a sessao pelo cookie HTTP-only quando a pagina e recarregada.
@@ -105,12 +115,19 @@ function App() {
         if (payload.type === "conversation.deleted") {
           refreshConversations();
           if (payload.conversationId === activeConversationId) {
-            setActiveConversationId(null);
-            setActiveDraftTitle(null);
-            setActiveDraftType(null);
-            setActiveDraftRole(null);
-            setGroupMembersOpen(false);
+            closeActiveConversation();
+          }
+        }
+        if (payload.type === "conversation.cleared") {
+          refreshConversations();
+          if (payload.conversationId === activeConversationId) {
             setMessages([]);
+          }
+        }
+        if (payload.type === "conversation.hidden") {
+          refreshConversations();
+          if (payload.conversationId === activeConversationId) {
+            closeActiveConversation();
           }
         }
       };
@@ -363,13 +380,53 @@ function App() {
     if (!activeConversationId) return;
     await api.deleteConversation(activeConversationId);
     setGroupMembersOpen(false);
+    closeActiveConversation();
+    refreshConversations();
+  }
+
+  async function clearActiveConversation() {
+    if (!activeConversationId) return;
+    await api.clearConversation(activeConversationId);
+    setMessages([]);
+    refreshConversations();
+  }
+
+  async function hideActiveConversation() {
+    if (!activeConversationId) return;
+    await api.hideConversation(activeConversationId);
+    closeActiveConversation();
+    refreshConversations();
+  }
+
+  async function confirmPendingAction() {
+    const action = pendingAction;
+    setPendingAction(null);
+
+    if (action === "clearConversation") {
+      await clearActiveConversation();
+      return;
+    }
+
+    if (action === "hideConversation") {
+      await hideActiveConversation();
+      return;
+    }
+
+    if (action === "deleteGroup") {
+      await deleteActiveGroup();
+    }
+  }
+
+  function closeActiveConversation() {
     setActiveConversationId(null);
     setActiveDraftTitle(null);
     setActiveDraftType(null);
     setActiveDraftRole(null);
+    setGroupMembersOpen(false);
     setMessages([]);
-    refreshConversations();
   }
+
+  const confirmation = getConfirmation(pendingAction);
 
   if (loading) return <main className="loading">Carregando</main>;
 
@@ -433,13 +490,22 @@ function App() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="profile">
-          <div>
+          <div className="profile-info">
             <strong>{user.displayName ?? user.display_name ?? user.username}</strong>
             <span>@{user.username}</span>
           </div>
-          <button className="icon-button" title="Sair" onClick={handleLogout}>
-            <LogOut size={18} />
-          </button>
+          <div className="profile-actions">
+            <button
+              className="icon-button"
+              title={theme === "dark" ? "Usar tema claro" : "Usar tema escuro"}
+              onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
+            >
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button className="icon-button" title="Sair" onClick={handleLogout}>
+              <LogOut size={18} />
+            </button>
+          </div>
         </div>
 
         <div className={systemStatus?.zookeeper.registered ? "system-status online" : "system-status"}>
@@ -502,6 +568,16 @@ function App() {
         <header className="chat-header">
           <h2>{activeConversation?.display_title ?? activeConversation?.title ?? activeDraftTitle ?? "Selecione uma conversa"}</h2>
           <div className="chat-header-actions">
+            {activeConversationId && (
+              <button className="icon-button compact" title="Limpar historico para mim" onClick={() => setPendingAction("clearConversation")}>
+                <Eraser size={16} />
+              </button>
+            )}
+            {activeConversationId && (
+              <button className="icon-button compact" title="Remover conversa da minha lista" onClick={() => setPendingAction("hideConversation")}>
+                <Trash2 size={16} />
+              </button>
+            )}
             {isActiveGroup && (
               <button className="icon-button compact" title="Membros do grupo" onClick={openGroupMembers}>
                 <UsersRound size={16} />
@@ -511,27 +587,35 @@ function App() {
           </div>
         </header>
 
-        <div className="message-list" ref={messageListRef}>
-          {messages.map((message) => (
-            <article key={message.id} className={message.sender_id === user.id ? "message mine" : "message"}>
-              <strong>{message.display_name ?? message.username ?? "Usuario"}</strong>
-              <p>{message.body}</p>
-            </article>
-          ))}
-        </div>
+        {activeConversationId ? (
+          <>
+            <div className="message-list" ref={messageListRef}>
+              {messages.map((message) => (
+                <article key={message.id} className={message.sender_id === user.id ? "message mine" : "message"}>
+                  <strong>{message.display_name ?? message.username ?? "Usuario"}</strong>
+                  <p>{message.body}</p>
+                </article>
+              ))}
+            </div>
 
-        <form className="composer" onSubmit={sendMessage}>
-          <input
-            name="body"
-            placeholder="Escreva uma mensagem"
-            disabled={!activeConversationId}
-            value={messageBody}
-            onChange={(event) => setMessageBody(event.target.value)}
-          />
-          <button className="icon-button primary" title="Enviar" disabled={!activeConversationId}>
-            <Send size={18} />
-          </button>
-        </form>
+            <form className="composer" onSubmit={sendMessage}>
+              <input
+                name="body"
+                placeholder="Escreva uma mensagem"
+                value={messageBody}
+                onChange={(event) => setMessageBody(event.target.value)}
+              />
+              <button className="icon-button primary" title="Enviar">
+                <Send size={18} />
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="empty-chat-state">
+            <MessageSquarePlus size={24} />
+            <span>Selecione ou inicie uma conversa</span>
+          </div>
+        )}
       </section>
 
       {newConversationOpen && (
@@ -658,12 +742,36 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <button className="danger-text-button" type="button" onClick={deleteActiveGroup}>
+                <button className="danger-text-button" type="button" onClick={() => setPendingAction("deleteGroup")}>
                   <Trash2 size={16} />
                   Apagar grupo
                 </button>
               </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {confirmation && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={() => setPendingAction(null)}>
+          <section className="modal confirm-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
+            <header className="modal-header">
+              <h2>{confirmation.title}</h2>
+              <button className="icon-button compact" title="Fechar" onClick={() => setPendingAction(null)}>
+                <X size={16} />
+              </button>
+            </header>
+            <div className="modal-section">
+              <p className="confirm-copy">{confirmation.body}</p>
+              <div className="confirm-actions">
+                <button className="secondary-text-button" type="button" onClick={() => setPendingAction(null)}>
+                  Cancelar
+                </button>
+                <button className="danger-text-button" type="button" onClick={confirmPendingAction}>
+                  Confirmar
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       )}
@@ -683,6 +791,38 @@ function filterUsers(users: User[], search: string) {
 
 function displayUserName(user: User) {
   return user.displayName ?? user.display_name ?? user.username;
+}
+
+function getConfirmation(action: PendingAction) {
+  if (action === "clearConversation") {
+    return {
+      title: "Limpar historico",
+      body: "As mensagens antigas deixam de aparecer apenas para voce. A outra pessoa continua vendo o historico normalmente."
+    };
+  }
+
+  if (action === "hideConversation") {
+    return {
+      title: "Remover conversa",
+      body: "A conversa sai da sua lista e o historico visivel para voce e limpo. A outra pessoa continua vendo a conversa."
+    };
+  }
+
+  if (action === "deleteGroup") {
+    return {
+      title: "Apagar grupo",
+      body: "O grupo sera apagado para todos os participantes. Essa acao e diferente de remover a conversa apenas da sua lista."
+    };
+  }
+
+  return null;
+}
+
+function readInitialTheme(): Theme {
+  const savedTheme = localStorage.getItem("chat-theme");
+  if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
+
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 type PasswordFieldProps = {
