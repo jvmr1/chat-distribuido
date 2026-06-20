@@ -99,7 +99,8 @@ coerente com o estado real do cliente.
 
 O projeto deve manter diagramas da arquitetura distribuida, incluindo usuarios,
 gateway, backends, PostgreSQL, znodes do ZooKeeper, presenca, envio de mensagem
-e failover.
+e failover. Os diagramas devem ter titulo renderizavel na imagem exportada e
+um procedimento para gerar arquivos de imagem com nomes previsiveis.
 
 ## Requisitos de Autenticacao e Sessao
 

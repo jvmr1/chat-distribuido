@@ -4,9 +4,21 @@ Os diagramas abaixo usam Mermaid e podem ser visualizados em editores que
 suportam Markdown com Mermaid, como GitHub, GitLab, Obsidian ou extensoes do
 VS Code.
 
+Para exportar imagens com nomes de arquivo previsiveis, use:
+
+```powershell
+.\docs\export-diagrams.ps1
+```
+
+O script gera arquivos em `docs/generated-diagrams`, seguindo a ordem e o nome
+das secoes deste documento.
+
 ## Visao Geral
 
 ```mermaid
+---
+title: Visao Geral
+---
 flowchart LR
   subgraph Navegadores
     Ana[Ana no navegador]
@@ -50,6 +62,9 @@ flowchart LR
 ## Arvore de Znodes
 
 ```mermaid
+---
+title: Arvore de Znodes
+---
 flowchart TD
   Root[/chat/]
 
@@ -73,6 +88,9 @@ flowchart TD
 ## Login e Sessao
 
 ```mermaid
+---
+title: Login e Sessao
+---
 sequenceDiagram
   participant U as Usuario
   participant FE as Frontend HTTPS
@@ -94,6 +112,9 @@ sequenceDiagram
 ## Registro de Backend e Eleicao de Lider
 
 ```mermaid
+---
+title: Registro de Backend e Eleicao de Lider
+---
 sequenceDiagram
   participant B1 as Backend A
   participant B2 as Backend B
@@ -115,6 +136,9 @@ sequenceDiagram
 ## Presenca Online e Offline
 
 ```mermaid
+---
+title: Presenca Online e Offline
+---
 sequenceDiagram
   participant Ana as Ana
   participant B1 as Backend A
@@ -136,6 +160,9 @@ sequenceDiagram
 ## Envio de Mensagem Entre Backends Diferentes
 
 ```mermaid
+---
+title: Envio de Mensagem Entre Backends Diferentes
+---
 sequenceDiagram
   participant Ana as Ana
   participant B1 as Backend A
@@ -157,6 +184,9 @@ sequenceDiagram
 ## Entrega Offline
 
 ```mermaid
+---
+title: Entrega Offline
+---
 sequenceDiagram
   participant Ana as Ana
   participant B1 as Backend A
@@ -179,6 +209,9 @@ sequenceDiagram
 ## Failover de Backend
 
 ```mermaid
+---
+title: Failover de Backend
+---
 sequenceDiagram
   participant FE as Frontend
   participant GW as Gateway
@@ -201,6 +234,9 @@ sequenceDiagram
 ## Visao de Dados por Usuario
 
 ```mermaid
+---
+title: Visao de Dados por Usuario
+---
 flowchart TD
   C[Conversa direta Ana-Bruno]
   M[(messages\nhistorico global)]
@@ -223,6 +259,9 @@ flowchart TD
 ## Seguranca
 
 ```mermaid
+---
+title: Seguranca
+---
 flowchart LR
   Browser[Navegador]
   FE[Frontend HTTPS]
