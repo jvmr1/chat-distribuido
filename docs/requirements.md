@@ -121,6 +121,12 @@ O Docker Compose deve persistir os diretorios de dados e logs do ZooKeeper para
 evitar que reinicios do container voltem com um `zxid` anterior ao observado
 por clientes ainda ativos.
 
+### RE17.2 - Logs operacionais do ZooKeeper
+
+No Docker Compose, o ZooKeeper deve usar nivel de log `WARN` por padrao para
+evitar mensagens informativas de reconexao que nao afetam o funcionamento do
+chat.
+
 ### RE18 - Documentacao por diagramas
 
 O projeto deve manter diagramas da arquitetura distribuida, incluindo usuarios,
