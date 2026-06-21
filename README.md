@@ -34,6 +34,9 @@ cd chat-distribuido
 ```bash
 docker compose up --build
 ```
+*(Nota para Linux: Caso receba um erro de permissão no `docker.sock`, execute com sudo: `sudo docker compose up --build`)*
+
+*(Nota sobre portas em uso: Se o comando falhar dizendo que a porta 5432 ou 2181 já está em uso, pare os serviços locais rodando na sua máquina: `sudo systemctl stop postgresql` ou interrompa qualquer ZooKeeper local que esteja rodando)*
 
 Esse comando sobe:
 
