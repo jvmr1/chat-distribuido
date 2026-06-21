@@ -3,7 +3,7 @@ dist/
 .env
 .DS_Store
 npm-debug.log*
-infra/apache-zookeeper-3.9.5-bin/data/
-infra/apache-zookeeper-3.9.5-bin/logs/
+infra/apache-zookeeper-3.9.5-bin/
 infra/certs/
 docs/generated-diagrams/
+data/

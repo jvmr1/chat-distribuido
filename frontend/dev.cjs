@@ -91,19 +91,46 @@ async function shutdown(code) {
 function ensureDevCertificate() {
   if (fs.existsSync(certPath) && fs.existsSync(keyPath)) return;
 
-  const script = path.join(rootDir, "infra", "create-dev-cert.ps1");
-  const powershell = process.platform === "win32" ? "powershell.exe" : "pwsh";
-  const result = spawnSync(
-    powershell,
-    ["-ExecutionPolicy", "Bypass", "-File", script],
-    {
-      cwd: rootDir,
-      stdio: "inherit",
-      shell: false
-    }
-  );
+  const certsDir = path.dirname(certPath);
+  if (!fs.existsSync(certsDir)) {
+    fs.mkdirSync(certsDir, { recursive: true });
+  }
 
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+  if (process.platform === "win32") {
+    const script = path.join(rootDir, "infra", "create-dev-cert.ps1");
+    const result = spawnSync(
+      "powershell.exe",
+      ["-ExecutionPolicy", "Bypass", "-File", script],
+      {
+        cwd: rootDir,
+        stdio: "inherit",
+        shell: false
+      }
+    );
+
+    if (result.status !== 0) {
+      process.exit(result.status ?? 1);
+    }
+  } else {
+    const result = spawnSync(
+      "openssl",
+      [
+        "req", "-x509", "-newkey", "rsa:2048",
+        "-keyout", keyPath, "-out", certPath,
+        "-sha256", "-days", "365", "-nodes",
+        "-subj", "/CN=localhost"
+      ],
+      {
+        cwd: rootDir,
+        stdio: "inherit",
+        shell: false
+      }
+    );
+
+    if (result.status !== 0) {
+      console.error("Erro ao gerar certificado autoassinado com OpenSSL.");
+      if (result.error) console.error(result.error);
+      process.exit(result.status ?? 1);
+    }
   }
 }
