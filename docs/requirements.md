@@ -24,8 +24,10 @@ nos descubram quais instancias estao disponiveis.
 
 ### RE04 - Eleicao de lider
 
-Os backends devem observar `/chat/nodes` e considerar lider o menor znode
-sequencial ativo. Quando o lider cair, outro no deve assumir automaticamente.
+Os backends devem observar `/chat/nodes` e considerar lider o menor znode ativo
+em ordem lexicografica. No Docker Compose, os znodes sao fixos, como
+`backend-1` e `backend-2`; no modo nativo sem `NODE_ID`, podem ser
+sequenciais. Quando o lider cair, outro no deve assumir automaticamente.
 
 ### RE05 - Roteamento interno entre backends
 

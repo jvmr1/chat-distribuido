@@ -55,14 +55,18 @@ cd infra\apache-zookeeper-3.9.5-bin
 Dentro do cliente:
 
 ```text
+addauth digest chat:dev-secret
 ls /chat/nodes
 ```
 
-Com o backend rodando, devem aparecer os znodes efemeros sequenciais dos backends, por exemplo:
+No Docker Compose principal, devem aparecer os znodes efemeros dos backends:
 
 ```text
-[backend-0000000000, backend-0000000001]
+[backend-1, backend-2]
 ```
+
+No modo nativo sem `NODE_ID`, o backend pode usar nomes sequenciais como
+`backend-0000000000`.
 
 ## Ordem recomendada para rodar
 
@@ -77,6 +81,7 @@ Terminal 2:
 ```powershell
 cd backend
 npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
@@ -117,7 +122,7 @@ npm run dev
 Terminal 3:
 
 ```powershell
-node .\infra\dev-load-balancer.js --port 3000
+node .\infra\dev-load-balancer.js --port 3000 --target-protocol https --target-reject-unauthorized false
 ```
 
 Terminal 4:
@@ -127,7 +132,7 @@ cd frontend
 npm run dev
 ```
 
-Agora o navegador fala com `localhost:3000`, e o balanceador encaminha para os backends disponiveis.
+Agora o navegador fala com `https://localhost:3000`, e o balanceador encaminha para os backends disponiveis.
 
 ## Failover direto no frontend
 
@@ -160,7 +165,7 @@ O modo padrao recomendado usa o gateway local. Se quiser testar o failover diret
 
 ```powershell
 cd frontend
-$env:VITE_API_URLS="http://localhost:3001,http://localhost:3002"
+$env:VITE_API_URLS="https://localhost:3001,https://localhost:3002"
 npm run dev:vite
 ```
 

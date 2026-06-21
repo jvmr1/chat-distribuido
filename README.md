@@ -34,9 +34,13 @@ cd chat-distribuido
 ```bash
 docker compose up --build
 ```
-*(Nota para Linux: Caso receba um erro de permissão no `docker.sock`, execute com sudo: `sudo docker compose up --build`)*
 
-*(Nota sobre portas em uso: Se o comando falhar dizendo que a porta 5432 ou 2181 já está em uso, pare os serviços locais rodando na sua máquina: `sudo systemctl stop postgresql` ou interrompa qualquer ZooKeeper local que esteja rodando)*
+Nota para Linux: caso receba erro de permissao no `docker.sock`, execute com
+`sudo docker compose up --build`.
+
+Nota sobre portas em uso: se o comando falhar dizendo que a porta `5432` ou
+`2181` ja esta em uso, pare os servicos locais de PostgreSQL ou ZooKeeper antes
+de subir o Compose.
 
 Esse comando sobe:
 
@@ -105,7 +109,10 @@ docker compose up --build
 
 ## Testes de Distribuicao
 
-Com o sistema rodando, derrube um backend:
+O passo a passo completo fica em
+[docs/distribution-tests.md](docs/distribution-tests.md).
+
+Teste rapido: com o sistema rodando, derrube um backend:
 
 ```bash
 docker compose stop backend-1
@@ -120,17 +127,22 @@ Suba o backend novamente:
 docker compose start backend-1
 ```
 
-Para ver os nos registrados no ZooKeeper:
+Para ver os nos registrados no ZooKeeper, abra o shell:
 
 ```bash
-docker compose exec zookeeper zookeeper-shell localhost:2181 ls /chat/nodes
+docker compose exec zookeeper zookeeper-shell localhost:2181
 ```
 
-Para ver presenca de usuarios:
+Dentro dele, autentique e consulte:
 
-```bash
-docker compose exec zookeeper zookeeper-shell localhost:2181 ls /chat/presence
+```text
+addauth digest chat:dev-secret
+ls /chat/nodes
+ls /chat/presence
 ```
+
+Outros testes documentados incluem entrega offline, persistencia apos queda de
+backend, presenca online/offline, ultimo visto e ACL do ZooKeeper.
 
 ## Execucao Nativa Opcional
 
@@ -149,6 +161,7 @@ Veja tambem:
 - [docs/project-structure.md](docs/project-structure.md)
 - [docs/requirements.md](docs/requirements.md)
 - [docs/diagrams.md](docs/diagrams.md)
+- [docs/distribution-tests.md](docs/distribution-tests.md)
 
 ## Funcionalidades
 

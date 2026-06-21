@@ -31,9 +31,9 @@ flowchart LR
   end
 
   subgraph ClusterBackend[Cluster de Backends]
-    B1[Backend A\nHTTPS/WSS :3001]
-    B2[Backend B\nHTTPS/WSS :3002]
-    B3[Backend C\nHTTPS/WSS :3003]
+    Setup[db-setup\nmigracao + seed]
+    B1[backend-1\nHTTPS/WSS :3001]
+    B2[backend-2\nHTTPS/WSS :3001]
   end
 
   ZK[(Apache ZooKeeper\nlocalhost:2181)]
@@ -44,19 +44,16 @@ flowchart LR
   Vite --> Gateway
   Gateway --> B1
   Gateway --> B2
-  Gateway --> B3
 
+  Setup --> DB
   B1 <--> DB
   B2 <--> DB
-  B3 <--> DB
 
   B1 <--> ZK
   B2 <--> ZK
-  B3 <--> ZK
 
   B1 -. eventos internos .-> B2
-  B2 -. eventos internos .-> B3
-  B3 -. eventos internos .-> B1
+  B2 -. eventos internos .-> B1
 ```
 
 ## Arvore de Znodes
@@ -69,15 +66,15 @@ flowchart TD
   Root[/chat/]
 
   Root --> Nodes[/chat/nodes/]
-  Nodes --> N1[backend-0000000001\nEPHEMERAL_SEQUENTIAL\nurl=https://localhost:3001]
-  Nodes --> N2[backend-0000000002\nEPHEMERAL_SEQUENTIAL\nurl=https://localhost:3002]
+  Nodes --> N1[backend-1\nEPHEMERAL\nurl=https://backend-1:3001]
+  Nodes --> N2[backend-2\nEPHEMERAL\nurl=https://backend-2:3001]
 
   Root --> Presence[/chat/presence/]
   Presence --> AnaUser[/chat/presence/anaUserId/]
   Presence --> BrunoUser[/chat/presence/brunoUserId/]
 
-  AnaUser --> AnaOnB1[backend-0000000001\nEPHEMERAL\nAna conectada no backend A]
-  BrunoUser --> BrunoOnB2[backend-0000000002\nEPHEMERAL\nBruno conectado no backend B]
+  AnaUser --> AnaOnB1[backend-1\nEPHEMERAL\nAna conectada no backend-1]
+  BrunoUser --> BrunoOnB2[backend-2\nEPHEMERAL\nBruno conectado no backend-2]
 
   Root --> Internal[/chat/internal/]
 
@@ -120,17 +117,17 @@ sequenceDiagram
   participant B2 as Backend B
   participant ZK as ZooKeeper
 
-  B1->>ZK: create /chat/nodes/backend- EPHEMERAL_SEQUENTIAL
-  ZK-->>B1: /chat/nodes/backend-0000000001
-  B2->>ZK: create /chat/nodes/backend- EPHEMERAL_SEQUENTIAL
-  ZK-->>B2: /chat/nodes/backend-0000000002
+  B1->>ZK: create /chat/nodes/backend-1 EPHEMERAL
+  ZK-->>B1: /chat/nodes/backend-1
+  B2->>ZK: create /chat/nodes/backend-2 EPHEMERAL
+  ZK-->>B2: /chat/nodes/backend-2
 
   B1->>ZK: watch /chat/nodes
   B2->>ZK: watch /chat/nodes
 
-  Note over B1,B2: Menor znode sequencial e o lider
-  ZK-->>B1: lider = backend-0000000001
-  ZK-->>B2: lider = backend-0000000001
+  Note over B1,B2: Menor znode ordenado e o lider
+  ZK-->>B1: lider = backend-1
+  ZK-->>B2: lider = backend-1
 ```
 
 ## Presenca Online e Offline
@@ -148,11 +145,11 @@ sequenceDiagram
 
   Ana->>B1: abre WebSocket /ws
   B1->>DB: valida cookie de sessao
-  B1->>ZK: create /chat/presence/anaId/backend-0001 EPHEMERAL
+  B1->>ZK: create /chat/presence/anaId/backend-1 EPHEMERAL
   B1-->>Outros: presence.changed online=true
 
   Ana--xB1: fecha navegador ou logout
-  B1->>ZK: remove /chat/presence/anaId/backend-0001
+  B1->>ZK: remove /chat/presence/anaId/backend-1
   B1->>DB: atualiza users.last_seen_at
   B1-->>Outros: presence.changed online=false
 ```
@@ -221,7 +218,7 @@ sequenceDiagram
 
   FE->>GW: requisicoes HTTP/WSS
   GW->>B1: encaminha para backend saudavel
-  B1->>ZK: znode efemero /chat/nodes/backend-0001
+  B1->>ZK: znode efemero /chat/nodes/backend-1
 
   B1--xGW: Backend A cai
   ZK-->>ZK: remove znode efemero de B1
