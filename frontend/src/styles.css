@@ -450,6 +450,40 @@ h2 {
   min-width: 0;
 }
 
+.group-member-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.member-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-badges,
+.member-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #c8d4df;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #415062;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.role-badge.admin {
+  border-color: #b8ddd4;
+  background: #eaf7f3;
+  color: #24735d;
+}
+
 .chat-panel {
   height: 100vh;
   min-height: 0;
@@ -650,10 +684,17 @@ body[data-theme="dark"] .message {
 body[data-theme="dark"] .auth-tabs,
 body[data-theme="dark"] .conversation,
 body[data-theme="dark"] .user-list button,
-body[data-theme="dark"] .member-option {
+body[data-theme="dark"] .member-option,
+body[data-theme="dark"] .role-badge {
   background: #202b36;
   color: #e6edf4;
   border-color: #2c3947;
+}
+
+body[data-theme="dark"] .role-badge.admin {
+  border-color: #356f62;
+  background: #17342f;
+  color: #81d5bd;
 }
 
 body[data-theme="dark"] .auth-tabs button,

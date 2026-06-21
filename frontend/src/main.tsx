@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Eraser, Eye, EyeOff, LogOut, MessageSquarePlus, Moon, Send, Sun, Trash2, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
+import { Eraser, Eye, EyeOff, LogOut, MessageSquarePlus, Moon, Send, ShieldCheck, ShieldMinus, Sun, Trash2, UserMinus, UserPlus, UsersRound, X } from "lucide-react";
 import { advanceApiUrl, api, Conversation, GroupMember, Message, SystemStatus, User, websocketUrl } from "./api";
 import "./styles.css";
 
@@ -35,6 +35,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(() => readInitialTheme());
   const [loading, setLoading] = useState(true);
   const messageListRef = useRef<HTMLDivElement | null>(null);
+  const messageInputRef = useRef<HTMLInputElement | null>(null);
   const scrollToBottomAfterLoadRef = useRef(false);
 
   useEffect(() => {
@@ -179,6 +180,19 @@ function App() {
     // seja enviada pelo usuario atual ou recebida de outra pessoa.
     scrollMessagesToBottom("smooth");
   }, [messages, activeConversationId]);
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+
+    focusMessageInput();
+  }, [activeConversationId]);
+
+  function focusMessageInput() {
+    const focus = () => messageInputRef.current?.focus();
+
+    window.requestAnimationFrame(focus);
+    window.setTimeout(focus, 80);
+  }
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     const scroll = () => {
@@ -384,6 +398,22 @@ function App() {
     setGroupMembers(members);
   }
 
+  async function promoteMemberToAdmin(userId: string) {
+    if (!activeConversationId) return;
+    await api.promoteGroupMember(activeConversationId, userId);
+    const { members } = await api.groupMembers(activeConversationId);
+    setGroupMembers(members);
+    refreshConversations();
+  }
+
+  async function demoteAdminToMember(userId: string) {
+    if (!activeConversationId) return;
+    await api.demoteGroupMember(activeConversationId, userId);
+    const { members } = await api.groupMembers(activeConversationId);
+    setGroupMembers(members);
+    refreshConversations();
+  }
+
   async function deleteActiveGroup() {
     if (!activeConversationId) return;
     await api.deleteConversation(activeConversationId);
@@ -551,6 +581,7 @@ function App() {
                     setActiveDraftTitle(null);
                     setActiveDraftType(null);
                     setActiveDraftRole(null);
+                    focusMessageInput();
                   }}
                 >
                   <span className="conversation-title-row">
@@ -619,6 +650,7 @@ function App() {
 
             <form className="composer" onSubmit={sendMessage}>
               <input
+                ref={messageInputRef}
                 name="body"
                 placeholder="Escreva uma mensagem"
                 value={messageBody}
@@ -725,19 +757,43 @@ function App() {
             <div className="modal-section">
               <div className="member-checklist">
                 {groupMembers.map((member) => (
-                  <div key={member.id} className="member-option">
-                    <span>{displayUserName(member)}</span>
-                    <small className={member.online ? "presence online" : "presence"}>
-                      {member.role === "owner" ? "Admin" : member.online ? "Online" : "Offline"}
-                    </small>
-                    {isActiveGroupOwner && member.role !== "owner" && (
-                      <button
-                        className="icon-button compact danger"
-                        title="Remover do grupo"
-                        onClick={() => removeMemberFromActiveGroup(member.id)}
-                      >
-                        <UserMinus size={16} />
-                      </button>
+                  <div key={member.id} className="member-option group-member-row">
+                    <span className="member-name">{displayUserName(member)}</span>
+                    <span className="member-badges">
+                      <small className={member.role === "owner" ? "role-badge admin" : "role-badge"}>
+                        {member.role === "owner" ? "Admin" : "Membro"}
+                      </small>
+                      <small className={member.online ? "presence online" : "presence"}>
+                        {member.online ? "Online" : "Offline"}
+                      </small>
+                    </span>
+                    {isActiveGroupOwner && member.id !== user.id && (
+                      <span className="member-actions">
+                        {member.role === "owner" ? (
+                          <button
+                            className="icon-button compact"
+                            title="Remover poder de admin"
+                            onClick={() => demoteAdminToMember(member.id)}
+                          >
+                            <ShieldMinus size={16} />
+                          </button>
+                        ) : (
+                          <button
+                            className="icon-button compact"
+                            title="Promover a admin"
+                            onClick={() => promoteMemberToAdmin(member.id)}
+                          >
+                            <ShieldCheck size={16} />
+                          </button>
+                        )}
+                        <button
+                          className="icon-button compact danger"
+                          title="Remover do grupo"
+                          onClick={() => removeMemberFromActiveGroup(member.id)}
+                        >
+                          <UserMinus size={16} />
+                        </button>
+                      </span>
                     )}
                   </div>
                 ))}

@@ -151,6 +151,14 @@ export const api = {
     request<void>(`/conversations/${conversationId}/members/${userId}`, {
       method: "DELETE"
     }),
+  promoteGroupMember: (conversationId: string, userId: string) =>
+    request<void>(`/conversations/${conversationId}/members/${userId}/promote`, {
+      method: "POST"
+    }),
+  demoteGroupMember: (conversationId: string, userId: string) =>
+    request<void>(`/conversations/${conversationId}/members/${userId}/demote`, {
+      method: "POST"
+    }),
   deleteConversation: (conversationId: string) =>
     request<void>(`/conversations/${conversationId}`, {
       method: "DELETE"

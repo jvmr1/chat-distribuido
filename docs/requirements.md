@@ -286,6 +286,25 @@ A pessoa que cria o grupo deve ser administradora.
 O administrador do grupo deve poder adicionar participantes, remover
 participantes e apagar o grupo.
 
+### RC11.1 - Promocao de administrador
+
+O administrador do grupo deve poder conceder permissao de administrador a outro
+participante do grupo.
+
+### RC11.1.1 - Remocao de permissao de administrador
+
+O administrador do grupo deve poder remover a permissao de administrador de
+outro administrador, mantendo esse usuario como membro comum.
+
+### RC11.1.2 - Remocao de outro administrador do grupo
+
+O administrador do grupo deve poder remover outro administrador do grupo.
+
+### RC11.2 - Indicadores separados de papel e presenca
+
+Na lista de membros do grupo, o papel do participante, como admin ou membro,
+deve ser exibido separadamente do estado de presenca, como online ou offline.
+
 ### RC12 - Permissoes de membro comum
 
 Usuarios comuns de um grupo devem poder enviar mensagens, mas nao gerenciar
@@ -410,6 +429,11 @@ Ao enviar uma mensagem, o historico deve rolar automaticamente para o fim.
 
 Se a conversa ja estiver aberta e chegar uma nova mensagem, o historico deve
 rolar automaticamente para o fim para que a mensagem fique visivel.
+
+### RU06.1 - Foco automatico no campo de mensagem
+
+Ao selecionar uma conversa na barra lateral, o campo de digitacao deve receber
+foco automaticamente para permitir digitar sem um clique adicional.
 
 ### RU07 - Separacao entre nova conversa e novo grupo
 

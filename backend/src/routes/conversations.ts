@@ -291,6 +291,55 @@ conversationsRouter.post("/:id/members", async (req, res) => {
   return res.status(204).send();
 });
 
+conversationsRouter.post("/:id/members/:userId/promote", async (req, res) => {
+  const owner = await ensureOwner(req.params.id, req.user!.id);
+  if (!owner) return res.status(403).json({ error: "FORBIDDEN" });
+
+  await pool.query(
+    `
+      UPDATE conversation_members
+      SET role = 'owner'
+      WHERE conversation_id = $1
+        AND user_id = $2
+        AND removed_at IS NULL
+    `,
+    [req.params.id, req.params.userId]
+  );
+
+  const members = await activeMemberIds(req.params.id);
+  await publishToUsersDistributed(members, {
+    type: "group.members.changed",
+    conversationId: req.params.id
+  });
+
+  return res.status(204).send();
+});
+
+conversationsRouter.post("/:id/members/:userId/demote", async (req, res) => {
+  const owner = await ensureOwner(req.params.id, req.user!.id);
+  if (!owner) return res.status(403).json({ error: "FORBIDDEN" });
+  if (req.params.userId === req.user!.id) return res.status(400).json({ error: "CANNOT_DEMOTE_SELF" });
+
+  await pool.query(
+    `
+      UPDATE conversation_members
+      SET role = 'member'
+      WHERE conversation_id = $1
+        AND user_id = $2
+        AND removed_at IS NULL
+    `,
+    [req.params.id, req.params.userId]
+  );
+
+  const members = await activeMemberIds(req.params.id);
+  await publishToUsersDistributed(members, {
+    type: "group.members.changed",
+    conversationId: req.params.id
+  });
+
+  return res.status(204).send();
+});
+
 conversationsRouter.post("/:id/clear", async (req, res) => {
   const allowed = await ensureMember(req.params.id, req.user!.id);
   if (!allowed) return res.status(404).json({ error: "CONVERSATION_NOT_FOUND" });
@@ -347,12 +396,13 @@ conversationsRouter.delete("/:id", async (req, res) => {
 conversationsRouter.delete("/:id/members/:userId", async (req, res) => {
   const owner = await ensureOwner(req.params.id, req.user!.id);
   if (!owner) return res.status(403).json({ error: "FORBIDDEN" });
+  if (req.params.userId === req.user!.id) return res.status(400).json({ error: "CANNOT_REMOVE_SELF" });
 
   await pool.query(
     `
       UPDATE conversation_members
       SET removed_at = now()
-      WHERE conversation_id = $1 AND user_id = $2 AND role <> 'owner'
+      WHERE conversation_id = $1 AND user_id = $2
     `,
     [req.params.id, req.params.userId]
   );
