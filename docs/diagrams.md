@@ -21,8 +21,8 @@ title: Visao Geral
 ---
 flowchart LR
   subgraph Navegadores
-    Ana[Ana no navegador]
-    Bruno[Bruno no navegador]
+    Alice[Alice no navegador]
+    Bob[Bob no navegador]
   end
 
   subgraph Frontend
@@ -39,8 +39,8 @@ flowchart LR
   ZK[(Apache ZooKeeper\nlocalhost:2181)]
   DB[(PostgreSQL\nusuarios, sessoes,\nconversas e mensagens)]
 
-  Ana --> Vite
-  Bruno --> Vite
+  Alice --> Vite
+  Bob --> Vite
   Vite --> Gateway
   Gateway --> B1
   Gateway --> B2
@@ -70,16 +70,16 @@ flowchart TD
   Nodes --> N2[backend-2\nEPHEMERAL\nurl=https://backend-2:3001]
 
   Root --> Presence[/chat/presence/]
-  Presence --> AnaUser[/chat/presence/anaUserId/]
-  Presence --> BrunoUser[/chat/presence/brunoUserId/]
+  Presence --> AliceUser[/chat/presence/aliceUserId/]
+  Presence --> BobUser[/chat/presence/bobUserId/]
 
-  AnaUser --> AnaOnB1[backend-1\nEPHEMERAL\nAna conectada no backend-1]
-  BrunoUser --> BrunoOnB2[backend-2\nEPHEMERAL\nBruno conectado no backend-2]
+  AliceUser --> AliceOnB1[backend-1\nEPHEMERAL\nAlice conectada no backend-1]
+  BobUser --> BobOnB2[backend-2\nEPHEMERAL\nBob conectado no backend-2]
 
   Root --> Internal[/chat/internal/]
 
   classDef ephemeral fill:#eaf7f3,stroke:#2d9b73,color:#1c2836;
-  class N1,N2,AnaOnB1,BrunoOnB2 ephemeral;
+  class N1,N2,AliceOnB1,BobOnB2 ephemeral;
 ```
 
 ## Login e Sessao
@@ -137,19 +137,19 @@ sequenceDiagram
 title: Presenca Online e Offline
 ---
 sequenceDiagram
-  participant Ana as Ana
+  participant Alice as Alice
   participant B1 as Backend A
   participant ZK as ZooKeeper
   participant DB as PostgreSQL
   participant Outros as Outros usuarios
 
-  Ana->>B1: abre WebSocket /ws
+  Alice->>B1: abre WebSocket /ws
   B1->>DB: valida cookie de sessao
-  B1->>ZK: create /chat/presence/anaId/backend-1 EPHEMERAL
+  B1->>ZK: create /chat/presence/aliceId/backend-1 EPHEMERAL
   B1-->>Outros: presence.changed online=true
 
-  Ana--xB1: fecha navegador ou logout
-  B1->>ZK: remove /chat/presence/anaId/backend-1
+  Alice--xB1: fecha navegador ou logout
+  B1->>ZK: remove /chat/presence/aliceId/backend-1
   B1->>DB: atualiza users.last_seen_at
   B1-->>Outros: presence.changed online=false
 ```
@@ -161,21 +161,21 @@ sequenceDiagram
 title: Envio de Mensagem Entre Backends Diferentes
 ---
 sequenceDiagram
-  participant Ana as Ana
+  participant Alice as Alice
   participant B1 as Backend A
   participant DB as PostgreSQL
   participant ZK as ZooKeeper
   participant B2 as Backend B
-  participant Bruno as Bruno
+  participant Bob as Bob
 
-  Ana->>B1: POST /conversations/{id}/messages
+  Alice->>B1: POST /conversations/{id}/messages
   B1->>DB: INSERT messages
-  B1->>DB: marca conversa como lida para Ana
-  B1->>ZK: consulta /chat/presence/brunoId
-  ZK-->>B1: Bruno esta no Backend B
+  B1->>DB: marca conversa como lida para Alice
+  B1->>ZK: consulta /chat/presence/bobId
+  ZK-->>B1: Bob esta no Backend B
   B1->>B2: POST /internal/events
-  B2-->>Bruno: WebSocket message.created
-  B1-->>Ana: resposta HTTP 201
+  B2-->>Bob: WebSocket message.created
+  B1-->>Alice: resposta HTTP 201
 ```
 
 ## Entrega Offline
@@ -185,22 +185,22 @@ sequenceDiagram
 title: Entrega Offline
 ---
 sequenceDiagram
-  participant Ana as Ana
+  participant Alice as Alice
   participant B1 as Backend A
   participant DB as PostgreSQL
   participant ZK as ZooKeeper
-  participant Bruno as Bruno
+  participant Bob as Bob
 
-  Ana->>B1: envia mensagem para Bruno
+  Alice->>B1: envia mensagem para Bob
   B1->>DB: grava mensagem
-  B1->>ZK: consulta /chat/presence/brunoId
+  B1->>ZK: consulta /chat/presence/bobId
   ZK-->>B1: nenhum znode de presenca
   Note over B1,DB: Nao ha entrega em tempo real, mas a mensagem fica persistida
 
-  Bruno->>B1: login depois
-  Bruno->>B1: GET /conversations/{id}/messages
+  Bob->>B1: login depois
+  Bob->>B1: GET /conversations/{id}/messages
   B1->>DB: busca historico persistido
-  B1-->>Bruno: entrega mensagens acumuladas
+  B1-->>Bob: entrega mensagens acumuladas
 ```
 
 ## Failover de Backend
@@ -235,20 +235,20 @@ sequenceDiagram
 title: Visao de Dados por Usuario
 ---
 flowchart TD
-  C[Conversa direta Ana-Bruno]
+  C[Conversa direta Alice-Bob]
   M[(messages\nhistorico global)]
-  CM_A[conversation_members Ana\ncleared_at / hidden_at]
-  CM_B[conversation_members Bruno\ncleared_at / hidden_at]
+  CM_A[conversation_members Alice\ncleared_at / hidden_at]
+  CM_B[conversation_members Bob\ncleared_at / hidden_at]
 
   C --> M
   C --> CM_A
   C --> CM_B
 
-  CM_A --> ViewA[Ana ve mensagens\nposteriores ao cleared_at dela]
-  CM_B --> ViewB[Bruno ve mensagens\nposteriores ao cleared_at dele]
+  CM_A --> ViewA[Alice ve mensagens\nposteriores ao cleared_at dela]
+  CM_B --> ViewB[Bob ve mensagens\nposteriores ao cleared_at dele]
 
-  CM_A --> HideA[hidden_at de Ana\nremove conversa da lista dela]
-  CM_B --> HideB[hidden_at de Bruno\nremove conversa da lista dele]
+  CM_A --> HideA[hidden_at de Alice\nremove conversa da lista dela]
+  CM_B --> HideB[hidden_at de Bob\nremove conversa da lista dele]
 
   M --> Persist[Mensagens continuam no banco\ne nao sao apagadas para o outro usuario]
 ```

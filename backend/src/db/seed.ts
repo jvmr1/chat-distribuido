@@ -2,9 +2,8 @@ import bcrypt from "bcryptjs";
 import { pool } from "./pool";
 
 const users = [
-  ["ana", "123456", "Ana"],
-  ["bruno", "123456", "Bruno"],
-  ["carla", "123456", "Carla"]
+  ["alice", "123456", "Alice"],
+  ["bob", "123456", "Bob"]
 ] as const;
 
 async function main() {
@@ -20,7 +19,7 @@ async function main() {
     );
   }
 
-  console.log("Seed users created: ana, bruno, carla. Password: 123456");
+  console.log("Seed users created: alice, bob. Password: 123456");
 }
 
 main()

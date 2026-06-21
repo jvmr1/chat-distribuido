@@ -43,8 +43,17 @@ authRouter.post("/register", async (req, res) => {
     return res.status(400).json({ error: "INVALID_USERNAME" });
   }
 
-  if (trimmedDisplayName.length < 2 || password.length < 6) {
-    return res.status(400).json({ error: "INVALID_REGISTRATION" });
+  if (trimmedDisplayName.length < 2) {
+    return res.status(400).json({ error: "INVALID_DISPLAY_NAME" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "INVALID_PASSWORD" });
+  }
+
+  const existingUser = await pool.query("SELECT 1 FROM users WHERE username = $1", [normalizedUsername]);
+  if ((existingUser.rowCount ?? 0) > 0) {
+    return res.status(409).json({ error: "USERNAME_TAKEN" });
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

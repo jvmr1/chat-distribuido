@@ -76,9 +76,8 @@ excecao de seguranca apenas para desenvolvimento local.
 
 Usuarios iniciais:
 
-- `ana` / `123456`
-- `bruno` / `123456`
-- `carla` / `123456`
+- `alice` / `123456`
+- `bob` / `123456`
 
 ## Comandos Uteis
 

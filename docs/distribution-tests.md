@@ -20,9 +20,8 @@ https://localhost:5173
 
 Usuarios iniciais:
 
-- `ana` / `123456`
-- `bruno` / `123456`
-- `carla` / `123456`
+- `alice` / `123456`
+- `bob` / `123456`
 
 Se o navegador reclamar do certificado local, aceite a excecao de seguranca
 para desenvolvimento local ou gere um certificado confiavel com `mkcert`.
@@ -71,8 +70,8 @@ sumir automaticamente depois que a sessao do ZooKeeper for encerrada.
 ## 4. Verificar presenca distribuida
 
 1. Abra dois navegadores, ou um navegador normal e uma janela anonima.
-2. Entre como `ana` em um.
-3. Entre como `bruno` no outro.
+2. Entre como `alice` em um.
+3. Entre como `bob` no outro.
 4. Rode:
 
 ```bash
@@ -97,9 +96,9 @@ esta conectado.
 
 ## 5. Testar entrega em tempo real
 
-1. Com `ana` e `bruno` logados, inicie uma conversa direta.
-2. Envie uma mensagem de Ana para Bruno.
-3. Verifique se Bruno recebe sem atualizar a pagina.
+1. Com `alice` e `bob` logados, inicie uma conversa direta.
+2. Envie uma mensagem de Alice para Bob.
+3. Verifique se Bob recebe sem atualizar a pagina.
 
 Esse teste valida:
 
@@ -170,21 +169,21 @@ conversas estao no PostgreSQL, nao na memoria local dos backends.
 
 ## 8. Testar entrega offline
 
-1. Entre como `ana`.
-2. Garanta que `bruno` esta deslogado ou com a janela fechada.
-3. Ana envia uma mensagem para Bruno.
-4. Entre como Bruno.
+1. Entre como `alice`.
+2. Garanta que `bob` esta deslogado ou com a janela fechada.
+3. Alice envia uma mensagem para Bob.
+4. Entre como Bob.
 
-Resultado esperado: Bruno visualiza a mensagem enviada enquanto estava offline.
+Resultado esperado: Bob visualiza a mensagem enviada enquanto estava offline.
 
 ## 9. Testar ultimo visto e presenca
 
-1. Entre como Ana e Bruno.
+1. Entre como Alice e Bob.
 2. Verifique que cada um aparece online para o outro.
-3. Feche a janela de Bruno ou faca logout.
-4. Observe na lista de conversas de Ana.
+3. Feche a janela de Bob ou faca logout.
+4. Observe na lista de conversas de Alice.
 
-Resultado esperado: Bruno deixa de aparecer online e passa a mostrar ultimo
+Resultado esperado: Bob deixa de aparecer online e passa a mostrar ultimo
 visto quando essa informacao existir.
 
 ## 10. Testar ACL do ZooKeeper

@@ -259,6 +259,14 @@ function App() {
         setLoginError("Use 3 a 24 caracteres: letras, numeros, ponto, traco ou underline.");
         return;
       }
+      if (message === "INVALID_DISPLAY_NAME") {
+        setLoginError("Informe um nome com pelo menos 2 caracteres.");
+        return;
+      }
+      if (message === "INVALID_PASSWORD") {
+        setLoginError("A senha precisa ter pelo menos 6 caracteres.");
+        return;
+      }
       setLoginError("Nao foi possivel criar a conta.");
     }
   }
@@ -590,12 +598,23 @@ function App() {
         {activeConversationId ? (
           <>
             <div className="message-list" ref={messageListRef}>
-              {messages.map((message) => (
-                <article key={message.id} className={message.sender_id === user.id ? "message mine" : "message"}>
-                  <strong>{message.display_name ?? message.username ?? "Usuario"}</strong>
-                  <p>{message.body}</p>
-                </article>
-              ))}
+              {messages.map((message, index) => {
+                const previousMessage = messages[index - 1];
+                const showDaySeparator = !previousMessage || !isSameMessageDay(previousMessage.created_at, message.created_at);
+
+                return (
+                  <React.Fragment key={message.id}>
+                    {showDaySeparator && <div className="day-separator">{formatMessageDay(message.created_at)}</div>}
+                    <article className={message.sender_id === user.id ? "message mine" : "message"}>
+                      <div className="message-meta">
+                        <strong>{message.display_name ?? message.username ?? "Usuario"}</strong>
+                        <time dateTime={message.created_at}>{formatMessageTime(message.created_at)}</time>
+                      </div>
+                      <p>{message.body}</p>
+                    </article>
+                  </React.Fragment>
+                );
+              })}
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
@@ -792,6 +811,41 @@ function filterUsers(users: User[], search: string) {
 
 function displayUserName(user: User) {
   return user.displayName ?? user.display_name ?? user.username;
+}
+
+function formatMessageTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatMessageDay(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (isSameCalendarDay(date, today)) return "Hoje";
+  if (isSameCalendarDay(date, yesterday)) return "Ontem";
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric"
+  }).format(date);
+}
+
+function isSameMessageDay(left: string, right: string) {
+  return isSameCalendarDay(new Date(left), new Date(right));
+}
+
+function isSameCalendarDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
 }
 
 function getConfirmation(action: PendingAction) {

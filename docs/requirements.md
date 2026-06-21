@@ -137,9 +137,25 @@ O sistema deve rejeitar usuario ou senha invalidos e impedir acesso ao chat.
 O sistema deve permitir cadastro de novo usuario informando nome de usuario,
 nome de exibicao, senha e confirmacao de senha.
 
+### RA03.1 - Regra minima de senha
+
+No cadastro, a senha deve ter pelo menos 6 caracteres. Quando a senha for
+menor que isso, o sistema deve informar essa regra explicitamente.
+
 ### RA04 - Nome de usuario unico
 
 O sistema deve impedir cadastro quando o nome de usuario ja existir.
+
+### RA04.1 - Erro especifico para usuario existente
+
+Ao tentar cadastrar um nome de usuario ja existente, o sistema deve informar
+claramente que o usuario ja existe, em vez de exibir erro generico.
+
+### RA04.2 - Erros especificos de validacao de cadastro
+
+Falhas de validacao no cadastro, como nome de exibicao curto, usuario fora do
+formato permitido ou senha curta, devem exibir mensagens especificas para o
+usuario.
 
 ### RA05 - Visualizacao de senha
 
@@ -160,6 +176,11 @@ apenas por logout ou expiracao/revogacao da sessao.
 
 Ao realizar logout, o usuario deve ter sua sessao revogada, seus WebSockets
 fechados e sua presenca removida em todos os backends do cluster.
+
+### RA09 - Usuarios iniciais de demonstracao
+
+O seed inicial do banco deve criar apenas os usuarios `alice` e `bob`, ambos
+com senha `123456`, para demonstracao do chat.
 
 ## Requisitos de Presenca
 
@@ -337,6 +358,16 @@ Conversas com mensagens nao lidas devem ter destaque visual na barra lateral.
 
 Ao abrir uma conversa, o sistema deve marcar suas mensagens como lidas para o
 usuario atual.
+
+### RM12 - Horario em cada mensagem
+
+Cada mensagem exibida no historico deve mostrar hora e minuto de envio de forma
+discreta na propria bolha da mensagem.
+
+### RM13 - Separador diario no historico
+
+O historico deve exibir um separador discreto quando as mensagens mudarem de
+dia ao longo do scroll.
 
 ## Requisitos de Interface e Usabilidade
 
