@@ -20,6 +20,7 @@ export const config = {
   zookeeperHost: process.env.ZOOKEEPER_HOST ?? "localhost:2181",
   zookeeperAuth: process.env.ZOOKEEPER_AUTH ?? null,
   zookeeperAclEnabled: parseBoolean(process.env.ZOOKEEPER_ACL_ENABLED ?? (process.env.ZOOKEEPER_AUTH ? "true" : "false")),
+  nodeHost: process.env.NODE_HOST ?? "localhost",
   nodeId: args.nodeId ?? process.env.NODE_ID ?? null
 };
 

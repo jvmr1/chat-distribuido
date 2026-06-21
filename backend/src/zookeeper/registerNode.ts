@@ -25,6 +25,7 @@ let clusterNodes: string[] = [];
 let leaderNodeId: string | null = null;
 let isLeader = false;
 let activeClient: Client | null = null;
+let nodeRegistrationRetry: NodeJS.Timeout | null = null;
 
 export function registerNodeInZookeeper() {
   // Este arquivo concentra o papel do ZooKeeper no projeto:
@@ -52,61 +53,13 @@ export function registerNodeInZookeeper() {
       return;
     }
 
-    mkdirpNode(client, "/chat/nodes", (mkdirError) => {
-      if (mkdirError) {
-        registered = false;
-        lastError = mkdirError.message;
-        console.error("ZooKeeper mkdir failed", mkdirError);
-        return;
-      }
-
-      // Sem NODE_ID fixo, o ZooKeeper gera nomes sequenciais como backend-0000000001.
-      // Como o znode e efemero, ele some sozinho se o processo morrer.
-      const path = config.nodeId ? `/chat/nodes/${config.nodeId}` : "/chat/nodes/backend-";
-      const payload = Buffer.from(
-        JSON.stringify({
-          requestedNodeId: config.nodeId,
-          nodeId: config.nodeId,
-          port: config.port,
-          internalUrl: `${internalProtocol()}://localhost:${config.port}`,
-          startedAt: new Date().toISOString()
-        } satisfies NodeData)
-      );
-      const createMode = config.nodeId ? zookeeper.CreateMode.EPHEMERAL : zookeeper.CreateMode.EPHEMERAL_SEQUENTIAL;
-
-      createNode(client, path, payload, createMode, (createError, createdPath) => {
-        if (createError && createError.getCode() === zookeeper.Exception.NODE_EXISTS) {
-          registered = false;
-          registeredNodeId = null;
-          registeredPath = null;
-          lastError = `ZooKeeper node already exists: ${path}`;
-          console.error(lastError);
-          return;
-        }
-
-        if (createError && createError.getCode() !== zookeeper.Exception.NODE_EXISTS) {
-          registered = false;
-          registeredNodeId = null;
-          registeredPath = null;
-          lastError = createError.message;
-          console.error("ZooKeeper node registration failed", createError);
-          return;
-        }
-
-        registeredPath = createdPath ?? path;
-        registeredNodeId = registeredPath.split("/").pop() ?? null;
-        registered = true;
-        console.log(`Registered backend node in ZooKeeper: ${registeredPath}`);
-        ensureBasePaths(client);
-        applyBaseAcls(client);
-        watchClusterNodes(client);
-      });
-    });
+    registerBackendNode(client);
   });
 
   client.on("disconnected", () => {
     connected = false;
     isLeader = false;
+    clearNodeRegistrationRetry();
     console.warn("ZooKeeper connection temporarily closed.");
   });
 
@@ -118,6 +71,7 @@ export function registerNodeInZookeeper() {
     clusterNodes = [];
     leaderNodeId = null;
     isLeader = false;
+    clearNodeRegistrationRetry();
     lastError = "ZooKeeper session expired.";
     console.warn(lastError);
   });
@@ -130,6 +84,7 @@ export function registerNodeInZookeeper() {
     clusterNodes = [];
     leaderNodeId = null;
     isLeader = false;
+    clearNodeRegistrationRetry();
     lastError = "ZooKeeper authentication failed.";
     console.error(lastError);
   });
@@ -171,7 +126,7 @@ export async function registerUserPresence(userId: string) {
     JSON.stringify({
       userId,
       nodeId,
-      internalUrl: `${internalProtocol()}://localhost:${config.port}`,
+      internalUrl: internalUrl(),
       connectedAt: new Date().toISOString()
     } satisfies PresenceData)
   );
@@ -254,6 +209,94 @@ function watchClusterNodes(client: Client) {
       }
     }
   );
+}
+
+function registerBackendNode(client: Client) {
+  clearNodeRegistrationRetry();
+
+  mkdirpNode(client, "/chat/nodes", (mkdirError) => {
+    if (mkdirError) {
+      registered = false;
+      lastError = mkdirError.message;
+      console.error("ZooKeeper mkdir failed", mkdirError);
+      scheduleNodeRegistrationRetry(client);
+      return;
+    }
+
+    createBackendNode(client);
+  });
+}
+
+function createBackendNode(client: Client) {
+  // Sem NODE_ID fixo, o ZooKeeper gera nomes sequenciais como backend-0000000001.
+  // Como o znode e efemero, ele some sozinho se o processo morrer.
+  const path = config.nodeId ? `/chat/nodes/${config.nodeId}` : "/chat/nodes/backend-";
+  const payload = Buffer.from(
+    JSON.stringify({
+      requestedNodeId: config.nodeId,
+      nodeId: config.nodeId,
+      port: config.port,
+      internalUrl: internalUrl(),
+      startedAt: new Date().toISOString()
+    } satisfies NodeData)
+  );
+  const createMode = config.nodeId ? zookeeper.CreateMode.EPHEMERAL : zookeeper.CreateMode.EPHEMERAL_SEQUENTIAL;
+
+  createNode(client, path, payload, createMode, (createError, createdPath) => {
+    if (createError && createError.getCode() === zookeeper.Exception.NODE_EXISTS && config.nodeId) {
+      registered = false;
+      registeredNodeId = null;
+      registeredPath = null;
+      lastError = `ZooKeeper node already exists: ${path}`;
+      console.warn(`${lastError}. Removing stale node and retrying registration.`);
+
+      removeIfExists(client, path)
+        .then(() => scheduleNodeRegistrationRetry(client, 250))
+        .catch((removeError) => {
+          lastError = removeError.message;
+          console.error("ZooKeeper stale node cleanup failed", removeError);
+          scheduleNodeRegistrationRetry(client);
+        });
+      return;
+    }
+
+    if (createError) {
+      registered = false;
+      registeredNodeId = null;
+      registeredPath = null;
+      lastError = createError.message;
+      console.error("ZooKeeper node registration failed", createError);
+      scheduleNodeRegistrationRetry(client);
+      return;
+    }
+
+    registeredPath = createdPath ?? path;
+    registeredNodeId = registeredPath.split("/").pop() ?? null;
+    registered = true;
+    lastError = null;
+    console.log(`Registered backend node in ZooKeeper: ${registeredPath}`);
+    ensureBasePaths(client);
+    applyBaseAcls(client);
+    watchClusterNodes(client);
+  });
+}
+
+function scheduleNodeRegistrationRetry(client: Client, delayMs = 1000) {
+  if (nodeRegistrationRetry || !connected) return;
+
+  nodeRegistrationRetry = setTimeout(() => {
+    nodeRegistrationRetry = null;
+    if (!registered && connected) {
+      registerBackendNode(client);
+    }
+  }, delayMs);
+}
+
+function clearNodeRegistrationRetry() {
+  if (!nodeRegistrationRetry) return;
+
+  clearTimeout(nodeRegistrationRetry);
+  nodeRegistrationRetry = null;
 }
 
 function ensureBasePaths(client: Client) {
@@ -340,6 +383,10 @@ function createNode(
 
 function internalProtocol() {
   return config.tlsEnabled ? "https" : "http";
+}
+
+function internalUrl() {
+  return `${internalProtocol()}://${config.nodeHost}:${config.port}`;
 }
 
 function getChildrenAsync(client: Client, path: string) {

@@ -32,6 +32,12 @@ sequencial ativo. Quando o lider cair, outro no deve assumir automaticamente.
 Quando um evento em tempo real precisar chegar a um usuario conectado em outro
 backend, o sistema deve encaminhar o evento por rota interna entre os nos.
 
+### RE05.1 - Endereco interno correto do no
+
+Cada backend deve anunciar no ZooKeeper uma URL interna acessivel pelos demais
+containers ou processos do cluster. Em Docker, esse endereco deve usar o nome
+do servico, como `backend-1` ou `backend-2`, em vez de `localhost`.
+
 ### RE06 - Gateway local de desenvolvimento
 
 O frontend deve usar uma URL estavel em desenvolvimento. Um gateway local deve
