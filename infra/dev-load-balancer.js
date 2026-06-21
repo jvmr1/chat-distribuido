@@ -14,6 +14,7 @@ const listenProtocol = tlsCertPath && tlsKeyPath ? "https" : "http";
 const targetProtocol = readArg("--target-protocol") ?? "http";
 const rejectUnauthorized = readArg("--target-reject-unauthorized") !== "false";
 const targets = readTargets();
+const allowedOrigins = readAllowedOrigins();
 
 let nextTargetIndex = 0;
 
@@ -23,6 +24,14 @@ if (targets.length === 0) {
 }
 
 const server = createServer((req, res) => {
+  applyCors(req, res);
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
   proxyHttp(req, res);
 });
 
@@ -42,7 +51,7 @@ function proxyHttp(req, res) {
   const target = pickHealthyTarget();
 
   if (!target) {
-    res.writeHead(503, { "Content-Type": "application/json" });
+    res.writeHead(503, withCorsHeaders(req, { "Content-Type": "application/json" }));
     res.end(JSON.stringify({ error: "NO_BACKEND_AVAILABLE" }));
     return;
   }
@@ -61,14 +70,14 @@ function proxyHttp(req, res) {
       }
     },
     (proxyRes) => {
-      res.writeHead(proxyRes.statusCode ?? 502, proxyRes.headers);
+      res.writeHead(proxyRes.statusCode ?? 502, withCorsHeaders(req, proxyRes.headers));
       proxyRes.pipe(res);
     }
   );
 
   proxyReq.on("error", () => {
     target.healthy = false;
-    res.writeHead(502, { "Content-Type": "application/json" });
+    res.writeHead(502, withCorsHeaders(req, { "Content-Type": "application/json" }));
     res.end(JSON.stringify({ error: "BACKEND_UNAVAILABLE" }));
   });
 
@@ -174,6 +183,44 @@ function readTargets() {
   }
 
   return generatedTargets;
+}
+
+function applyCors(req, res) {
+  const headers = withCorsHeaders(req, {});
+
+  for (const [name, value] of Object.entries(headers)) {
+    res.setHeader(name, value);
+  }
+}
+
+function withCorsHeaders(req, headers) {
+  const origin = req.headers.origin;
+  if (!origin || !allowedOrigins.includes(origin)) return headers;
+
+  return {
+    ...headers,
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": req.headers["access-control-request-headers"] ?? "Content-Type",
+    "Vary": appendVary(headers.vary ?? headers.Vary, "Origin")
+  };
+}
+
+function appendVary(current, value) {
+  if (!current) return value;
+  const values = String(current).split(",").map((item) => item.trim().toLowerCase());
+  return values.includes(value.toLowerCase()) ? current : `${current}, ${value}`;
+}
+
+function readAllowedOrigins() {
+  const explicitOrigins = readArg("--allowed-origins") ?? process.env.GATEWAY_ALLOWED_ORIGINS;
+  const rawOrigins = explicitOrigins ?? "https://localhost:5173,http://localhost:5173";
+
+  return rawOrigins
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
 function createServer(handler) {

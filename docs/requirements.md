@@ -79,6 +79,12 @@ O backend deve aceitar as origens locais configuradas para o frontend, incluindo
 `https://localhost:5173` e `http://localhost:5173`, retornando a origem correta
 na resposta CORS.
 
+### RE14.1 - CORS no gateway de desenvolvimento
+
+O gateway local deve responder requisicoes preflight `OPTIONS` e incluir
+cabecalhos CORS tambem em respostas de erro, evitando que falhas temporarias de
+backend sejam mascaradas pelo navegador como bloqueio de CORS.
+
 ### RE15 - ACL no ZooKeeper
 
 O sistema deve permitir configurar autenticacao digest e ACL no ZooKeeper para

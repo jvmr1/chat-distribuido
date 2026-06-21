@@ -76,6 +76,7 @@ services:
       GATEWAY_TARGETS: backend-1:3001,backend-2:3001
       GATEWAY_TARGET_PROTOCOL: https
       GATEWAY_TARGET_REJECT_UNAUTHORIZED: "false"
+      GATEWAY_ALLOWED_ORIGINS: https://localhost:5173,http://localhost:5173
     volumes:
       - ./infra/certs:/app/infra/certs
     ports:
