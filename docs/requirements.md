@@ -53,6 +53,12 @@ funcionando sem exigir troca manual de URL pelo usuario.
 Usuarios, sessoes, conversas, membros de grupos, mensagens e marcacoes de
 leitura devem ser armazenados em PostgreSQL.
 
+### RE08.1 - Preparacao unica do banco no Compose
+
+No Docker Compose, migracoes e seed devem ser executados por um container
+dedicado antes da inicializacao dos backends, evitando trabalho duplicado e
+condicoes de corrida entre instancias.
+
 ### RE09 - Mensagens offline
 
 Mensagens enviadas para usuarios desconectados devem permanecer no banco e ser
@@ -406,6 +412,12 @@ apos clonar o repositorio, independentemente do sistema operacional.
 O Docker Compose principal deve subir frontend, gateway e backends com HTTPS e
 WSS habilitados por padrao, compartilhando os certificados locais de
 `infra/certs` entre os containers.
+
+### RU12.1.3 - Backend compilado no Docker
+
+As imagens Docker do backend devem compilar o TypeScript durante o build e
+executar `dist/server.js` no container, reservando watchers como `tsx watch`
+para o modo nativo de desenvolvimento.
 
 ### RU12.2 - Inicializacao flexivel do ZooKeeper local
 

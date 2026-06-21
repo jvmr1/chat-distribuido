@@ -42,15 +42,19 @@ Esse comando sobe:
 
 - PostgreSQL em `localhost:5432`
 - ZooKeeper em `localhost:2181`
+- Preparacao unica do banco no container `db-setup`
 - Backend 1 no container `backend-1`
 - Backend 2 no container `backend-2`
 - Gateway em `https://localhost:3000`
 - Frontend em `https://localhost:5173`
 
-O backend executa automaticamente:
+O container `db-setup` executa automaticamente:
 
 - migracao do banco;
-- seed dos usuarios iniciais;
+- seed dos usuarios iniciais.
+
+Cada backend executa automaticamente:
+
 - registro dos nos no ZooKeeper;
 - configuracao HTTPS/WSS usando os certificados em `infra/certs`.
 

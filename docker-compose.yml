@@ -23,7 +23,8 @@ services:
     ports:
       - "2181:2181"
 
-  backend-1:
+  db-setup:
+    image: chat-distribuido-backend:dev
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -37,11 +38,15 @@ services:
       FRONTEND_ORIGINS: https://localhost:5173,https://localhost:3000,http://localhost:5173,http://localhost:3000
       DEV_TLS_ENABLED: "true"
       TLS_ENABLED: "true"
+      TLS_CERT_PATH: /app/infra/certs/localhost-cert.pem
+      TLS_KEY_PATH: /app/infra/certs/localhost-key.pem
       COOKIE_SECURE: "true"
       INTERNAL_TLS_REJECT_UNAUTHORIZED: "false"
       DEV_ZOOKEEPER_ACL_ENABLED: "true"
       ZOOKEEPER_AUTH: chat:dev-secret
       ZOOKEEPER_ACL_ENABLED: "true"
+      RUN_DB_SETUP: "true"
+      RUN_SERVER: "false"
     volumes:
       - ./infra/certs:/app/infra/certs
     depends_on:
@@ -50,7 +55,23 @@ services:
       zookeeper:
         condition: service_started
 
+  backend-1:
+    image: chat-distribuido-backend:dev
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      <<: *backend-env
+      RUN_DB_SETUP: "false"
+      RUN_SERVER: "true"
+    volumes:
+      - ./infra/certs:/app/infra/certs
+    depends_on:
+      db-setup:
+        condition: service_completed_successfully
+
   backend-2:
+    image: chat-distribuido-backend:dev
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -58,13 +79,13 @@ services:
       <<: *backend-env
       NODE_ID: backend-2
       NODE_HOST: backend-2
+      RUN_DB_SETUP: "false"
+      RUN_SERVER: "true"
     volumes:
       - ./infra/certs:/app/infra/certs
     depends_on:
-      postgres:
-        condition: service_healthy
-      zookeeper:
-        condition: service_started
+      db-setup:
+        condition: service_completed_successfully
 
   frontend:
     build:

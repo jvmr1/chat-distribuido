@@ -13,6 +13,7 @@ RUN npm ci
 
 COPY backend ./
 COPY infra /app/infra
+RUN npm run build
 
 EXPOSE 3001
 

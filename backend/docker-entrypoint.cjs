@@ -1,8 +1,11 @@
 const net = require("node:net");
 const { spawn, spawnSync } = require("node:child_process");
+const { ensureDevCertificate } = require("../infra/ensure-dev-cert.cjs");
 
 const databaseUrl = new URL(process.env.DATABASE_URL ?? "postgres://chat:chat@postgres:5432/chatdb");
 const [zookeeperHost, zookeeperPort = "2181"] = (process.env.ZOOKEEPER_HOST ?? "zookeeper:2181").split(":");
+const shouldRunDbSetup = process.env.RUN_DB_SETUP !== "false";
+const shouldRunServer = process.env.RUN_SERVER !== "false";
 
 main().catch((error) => {
   console.error(error);
@@ -13,10 +16,18 @@ async function main() {
   await waitForTcp(databaseUrl.hostname, Number(databaseUrl.port || 5432), "PostgreSQL");
   await waitForTcp(zookeeperHost, Number(zookeeperPort), "ZooKeeper");
 
-  run("npm", ["run", "db:migrate"]);
-  run("npm", ["run", "db:seed"]);
+  if (process.env.DEV_TLS_ENABLED !== "false" || process.env.TLS_ENABLED === "true") {
+    ensureDevCertificate();
+  }
 
-  const child = spawn("npm", ["run", "dev"], {
+  if (shouldRunDbSetup) {
+    run("node", ["dist/db/migrate.js"]);
+    run("node", ["dist/db/seed.js"]);
+  }
+
+  if (!shouldRunServer) return;
+
+  const child = spawn("node", ["dist/server.js"], {
     stdio: "inherit",
     shell: process.platform === "win32"
   });
