@@ -115,6 +115,12 @@ O backend deve tratar eventos de conexao, desconexao temporaria, expiracao de
 sessao e falha de autenticacao do ZooKeeper, mantendo o indicador de status
 coerente com o estado real do cliente.
 
+### RE17.1 - Persistencia local do estado do ZooKeeper no Compose
+
+O Docker Compose deve persistir os diretorios de dados e logs do ZooKeeper para
+evitar que reinicios do container voltem com um `zxid` anterior ao observado
+por clientes ainda ativos.
+
 ### RE18 - Documentacao por diagramas
 
 O projeto deve manter diagramas da arquitetura distribuida, incluindo usuarios,

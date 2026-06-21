@@ -57,6 +57,9 @@ O container `db-setup` executa automaticamente:
 - migracao do banco;
 - seed dos usuarios iniciais.
 
+O Compose tambem mantém volumes para PostgreSQL e ZooKeeper. Isso evita perda
+de dados do banco e reduz problemas de reconexao do ZooKeeper apos reinicios.
+
 Cada backend executa automaticamente:
 
 - registro dos nos no ZooKeeper;
