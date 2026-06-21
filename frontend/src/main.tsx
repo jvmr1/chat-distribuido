@@ -604,6 +604,7 @@ function App() {
                 placeholder="Escreva uma mensagem"
                 value={messageBody}
                 onChange={(event) => setMessageBody(event.target.value)}
+                autoComplete="off"
               />
               <button className="icon-button primary" title="Enviar">
                 <Send size={18} />
