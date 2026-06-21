@@ -378,6 +378,24 @@ gateway local de desenvolvimento em HTTPS.
 O comando `npm run dev` do backend deve iniciar uma instancia HTTPS em porta
 livre, sem exigir que o usuario escolha manualmente portas para multiplos nos.
 
+### RU12.1 - Compatibilidade Windows e Linux nos comandos
+
+Os comandos principais de desenvolvimento devem funcionar em Windows e Linux,
+evitando dependencias exclusivas de shell quando houver alternativa em Node.js.
+
+### RU12.1.1 - Execucao padronizada por Docker Compose
+
+O projeto deve oferecer Docker Compose como caminho principal de execucao,
+permitindo que uma pessoa rode todo o sistema com `docker compose up --build`
+apos clonar o repositorio, independentemente do sistema operacional.
+
+### RU12.2 - Inicializacao flexivel do ZooKeeper local
+
+O script de inicializacao do ZooKeeper no Windows deve localizar uma distribuicao
+local por `ZOOKEEPER_HOME`, pasta `infra/apache-zookeeper-*-bin` ou `PATH`, e
+deve oferecer fallback por Docker Compose quando a distribuicao local nao
+estiver disponivel.
+
 ### RU13 - Confirmacao para acoes destrutivas
 
 Acoes como limpar historico, remover conversa da lista e apagar grupo devem

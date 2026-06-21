@@ -1,11 +1,29 @@
 # Infraestrutura local
 
+O modo recomendado para rodar o projeto esta no [README principal](../README.md)
+e usa `docker compose up --build`. Este arquivo fica como referencia para quem
+quiser rodar partes da infraestrutura manualmente.
+
 ## ZooKeeper no Windows
 
-O projeto inclui uma distribuicao local do ZooKeeper em:
+O script procura o ZooKeeper nesta ordem:
+
+1. Variavel `ZOOKEEPER_HOME`.
+2. Alguma pasta `infra\apache-zookeeper-*-bin` que contenha `bin\zkServer.cmd`.
+3. `zkServer.cmd` disponivel no `PATH`.
+4. Docker Compose, usando o servico `zookeeper` de `infra\docker-compose.yml`.
+
+A distribuicao completa do ZooKeeper nao e versionada no Git. Se quiser rodar
+sem Docker, baixe o Apache ZooKeeper e coloque a pasta em:
 
 ```powershell
 infra\apache-zookeeper-3.9.5-bin
+```
+
+Ou configure:
+
+```powershell
+$env:ZOOKEEPER_HOME="C:\apache-zookeeper-3.9.5-bin"
 ```
 
 Para iniciar:
@@ -23,7 +41,9 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\infra\start-zookeeper.ps1
 ```
 
-O ZooKeeper precisa de Java instalado e disponivel no `PATH`.
+Para rodar com a distribuicao local, o ZooKeeper precisa de Java instalado e
+disponivel no `PATH` ou em `JAVA_HOME`. Para rodar via Docker, o Docker precisa
+estar instalado e em execucao.
 
 Para testar pelo cliente do ZooKeeper, abra outro terminal:
 
@@ -172,11 +192,21 @@ Esse valor ja esta previsto no `backend\.env.example`.
 ## TLS para HTTP e WebSocket
 
 Por padrao, `npm run dev` ja habilita TLS em desenvolvimento. Se o certificado
-local ainda nao existir, ele e gerado automaticamente por:
+local ainda nao existir, ele e gerado automaticamente pelo helper Node
+multiplataforma:
 
 ```powershell
-.\infra\create-dev-cert.ps1
+node .\infra\ensure-dev-cert.cjs
 ```
+
+No Linux/macOS, o mesmo comando funciona usando `/` no caminho:
+
+```bash
+node ./infra/ensure-dev-cert.cjs
+```
+
+O helper tenta usar `mkcert`, depois `openssl` com SAN para localhost, e no
+Windows ainda possui fallback para o script PowerShell.
 
 Esse comando gera:
 

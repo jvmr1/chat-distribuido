@@ -1,11 +1,10 @@
-const { spawn, spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const fs = require("node:fs");
 const path = require("node:path");
+const { certPath, ensureDevCertificate, keyPath } = require("../infra/ensure-dev-cert.cjs");
 
 const rootDir = path.resolve(__dirname, "..");
 const gatewayScript = path.join(rootDir, "infra", "dev-load-balancer.js");
-const certPath = path.join(rootDir, "infra", "certs", "localhost-cert.pem");
-const keyPath = path.join(rootDir, "infra", "certs", "localhost-key.pem");
 const useDevTls = process.env.DEV_TLS_ENABLED !== "false";
 const gatewayArgs = [gatewayScript, "--port", "3000"];
 const gatewayCertPath = process.env.GATEWAY_TLS_CERT_PATH ?? (useDevTls ? certPath : "");
@@ -20,6 +19,10 @@ if (useDevTls) {
 
 if (gatewayCertPath && gatewayKeyPath) {
   gatewayArgs.push("--tls-cert", gatewayCertPath, "--tls-key", gatewayKeyPath);
+}
+
+if (process.env.GATEWAY_TARGETS) {
+  gatewayArgs.push("--targets", process.env.GATEWAY_TARGETS);
 }
 
 gatewayArgs.push("--target-protocol", process.env.GATEWAY_TARGET_PROTOCOL ?? (useDevTls ? "https" : "http"));
@@ -65,7 +68,8 @@ async function startVite() {
     configFile: false,
     plugins: [react.default()],
     server: {
-      host: "localhost",
+      host: process.env.VITE_HOST ?? "localhost",
+      port: Number(process.env.VITE_PORT ?? 5173),
       https: useDevTls
         ? {
             cert: fs.readFileSync(certPath),
@@ -86,51 +90,4 @@ async function shutdown(code) {
     await viteServer.close();
   }
   process.exit(code);
-}
-
-function ensureDevCertificate() {
-  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) return;
-
-  const certsDir = path.dirname(certPath);
-  if (!fs.existsSync(certsDir)) {
-    fs.mkdirSync(certsDir, { recursive: true });
-  }
-
-  if (process.platform === "win32") {
-    const script = path.join(rootDir, "infra", "create-dev-cert.ps1");
-    const result = spawnSync(
-      "powershell.exe",
-      ["-ExecutionPolicy", "Bypass", "-File", script],
-      {
-        cwd: rootDir,
-        stdio: "inherit",
-        shell: false
-      }
-    );
-
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
-    }
-  } else {
-    const result = spawnSync(
-      "openssl",
-      [
-        "req", "-x509", "-newkey", "rsa:2048",
-        "-keyout", keyPath, "-out", certPath,
-        "-sha256", "-days", "365", "-nodes",
-        "-subj", "/CN=localhost"
-      ],
-      {
-        cwd: rootDir,
-        stdio: "inherit",
-        shell: false
-      }
-    );
-
-    if (result.status !== 0) {
-      console.error("Erro ao gerar certificado autoassinado com OpenSSL.");
-      if (result.error) console.error(result.error);
-      process.exit(result.status ?? 1);
-    }
-  }
 }

@@ -1,10 +1,7 @@
-const { spawn, spawnSync } = require("node:child_process");
-const fs = require("node:fs");
+const { spawn } = require("node:child_process");
 const path = require("node:path");
+const { certPath, ensureDevCertificate, keyPath } = require("../infra/ensure-dev-cert.cjs");
 
-const rootDir = path.resolve(__dirname, "..");
-const certPath = path.join(rootDir, "infra", "certs", "localhost-cert.pem");
-const keyPath = path.join(rootDir, "infra", "certs", "localhost-key.pem");
 const tsxScript = path.join(__dirname, "node_modules", "tsx", "dist", "cli.cjs");
 const useDevTls = process.env.DEV_TLS_ENABLED !== "false";
 const useZookeeperAcl = process.env.DEV_ZOOKEEPER_ACL_ENABLED !== "false";
@@ -36,50 +33,3 @@ const child = spawn(
 child.on("exit", (code) => {
   process.exit(code ?? 0);
 });
-
-function ensureDevCertificate() {
-  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) return;
-
-  const certsDir = path.dirname(certPath);
-  if (!fs.existsSync(certsDir)) {
-    fs.mkdirSync(certsDir, { recursive: true });
-  }
-
-  if (process.platform === "win32") {
-    const script = path.join(rootDir, "infra", "create-dev-cert.ps1");
-    const result = spawnSync(
-      "powershell.exe",
-      ["-ExecutionPolicy", "Bypass", "-File", script],
-      {
-        cwd: rootDir,
-        stdio: "inherit",
-        shell: false
-      }
-    );
-
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
-    }
-  } else {
-    const result = spawnSync(
-      "openssl",
-      [
-        "req", "-x509", "-newkey", "rsa:2048",
-        "-keyout", keyPath, "-out", certPath,
-        "-sha256", "-days", "365", "-nodes",
-        "-subj", "/CN=localhost"
-      ],
-      {
-        cwd: rootDir,
-        stdio: "inherit",
-        shell: false
-      }
-    );
-
-    if (result.status !== 0) {
-      console.error("Erro ao gerar certificado autoassinado com OpenSSL.");
-      if (result.error) console.error(result.error);
-      process.exit(result.status ?? 1);
-    }
-  }
-}
