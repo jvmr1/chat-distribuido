@@ -389,6 +389,12 @@ O projeto deve oferecer Docker Compose como caminho principal de execucao,
 permitindo que uma pessoa rode todo o sistema com `docker compose up --build`
 apos clonar o repositorio, independentemente do sistema operacional.
 
+### RU12.1.2 - HTTPS padrao no Docker Compose
+
+O Docker Compose principal deve subir frontend, gateway e backends com HTTPS e
+WSS habilitados por padrao, compartilhando os certificados locais de
+`infra/certs` entre os containers.
+
 ### RU12.2 - Inicializacao flexivel do ZooKeeper local
 
 O script de inicializacao do ZooKeeper no Windows deve localizar uma distribuicao

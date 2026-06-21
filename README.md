@@ -44,22 +44,27 @@ Esse comando sobe:
 - ZooKeeper em `localhost:2181`
 - Backend 1 no container `backend-1`
 - Backend 2 no container `backend-2`
-- Gateway em `http://localhost:3000`
-- Frontend em `http://localhost:5173`
+- Gateway em `https://localhost:3000`
+- Frontend em `https://localhost:5173`
 
 O backend executa automaticamente:
 
 - migracao do banco;
 - seed dos usuarios iniciais;
-- registro dos nos no ZooKeeper.
+- registro dos nos no ZooKeeper;
+- configuracao HTTPS/WSS usando os certificados em `infra/certs`.
 
 ### 4. Acesse
 
 Abra no navegador:
 
 ```text
-http://localhost:5173
+https://localhost:5173
 ```
+
+Se o navegador avisar que o certificado local nao e confiavel, gere um
+certificado confiavel com `mkcert` antes de subir os containers, ou aceite a
+excecao de seguranca apenas para desenvolvimento local.
 
 Usuarios iniciais:
 
