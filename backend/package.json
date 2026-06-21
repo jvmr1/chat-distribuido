@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "node dev.cjs",
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-db-assets.cjs",
     "start": "node dist/server.js",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts"

@@ -419,6 +419,12 @@ As imagens Docker do backend devem compilar o TypeScript durante o build e
 executar `dist/server.js` no container, reservando watchers como `tsx watch`
 para o modo nativo de desenvolvimento.
 
+### RU12.1.4 - Assets de banco no build compilado
+
+O build compilado do backend deve copiar arquivos auxiliares necessarios em
+runtime, como `schema.sql`, para `dist`, garantindo que migracoes funcionem
+fora do modo `tsx`.
+
 ### RU12.2 - Inicializacao flexivel do ZooKeeper local
 
 O script de inicializacao do ZooKeeper no Windows deve localizar uma distribuicao
