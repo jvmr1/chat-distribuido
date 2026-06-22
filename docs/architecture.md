@@ -39,6 +39,19 @@ Mensagens, conversas, grupos, sessoes e leituras ficam no PostgreSQL. Os nos da
 aplicacao podem cair sem perda de dados porque nao guardam o estado critico
 localmente.
 
+## Autorizacao de grupos
+
+As permissoes de grupos sao regras de negocio da aplicacao. Elas ficam no
+PostgreSQL, na tabela `conversation_members`, por meio do campo `role`:
+
+- `owner`: administrador do grupo.
+- `member`: participante comum.
+
+O backend consulta esse papel antes de adicionar participantes, remover
+participantes, promover membros, rebaixar administradores ou apagar grupos.
+ACLs do ZooKeeper nao controlam permissoes de grupos; elas protegem apenas os
+znodes tecnicos usados para coordenacao distribuida.
+
 ## Fluxo distribuido de mensagens
 
 1. O navegador acessa o frontend em `https://localhost:5173`.

@@ -4,14 +4,21 @@ Os diagramas abaixo usam Mermaid e podem ser visualizados em editores que
 suportam Markdown com Mermaid, como GitHub, GitLab, Obsidian ou extensoes do
 VS Code.
 
-Para exportar imagens com nomes de arquivo previsiveis, use:
+Os diagramas ficam mantidos diretamente neste Markdown, em blocos Mermaid. Isso
+evita dependencia de geradores locais, Docker, Chromium ou scripts especificos
+do sistema operacional apenas para documentacao.
 
-```powershell
-.\docs\export-diagrams.ps1
-```
+Para gerar imagens manualmente, use qualquer ferramenta externa que renderize
+Mermaid, por exemplo:
 
-O script gera arquivos em `docs/generated-diagrams`, seguindo a ordem e o nome
-das secoes deste documento.
+- preview Mermaid do GitHub ou GitLab;
+- extensao Markdown/Mermaid do VS Code;
+- Mermaid Live Editor;
+- diagrams.net/draw.io, redesenhando a partir destes fluxos quando precisar de
+  uma imagem final mais diagramada.
+
+A pasta `docs/diagramas` pode guardar imagens exportadas manualmente, mas as
+fontes oficiais dos diagramas sao os blocos abaixo.
 
 ## Visao Geral
 
@@ -253,6 +260,62 @@ flowchart TD
   M --> Persist[Mensagens continuam no banco\ne nao sao apagadas para o outro usuario]
 ```
 
+## Permissoes de Grupo
+
+```mermaid
+---
+title: Permissoes de Grupo
+---
+flowchart TD
+  G[Grupo]
+  CM[(conversation_members)]
+  Owner[role = owner\nAdmin do grupo]
+  Member[role = member\nMembro comum]
+
+  G --> CM
+  CM --> Owner
+  CM --> Member
+
+  Owner --> Add[Adicionar participante]
+  Owner --> Remove[Remover participante]
+  Owner --> Promote[Promover membro a admin]
+  Owner --> Demote[Remover poder de admin\nde outro admin]
+  Owner --> Delete[Apagar grupo]
+
+  Member --> Send[Enviar mensagem]
+  Member --> Read[Ver historico e membros]
+
+  ZK[ZooKeeper ACL] -. protege apenas znodes tecnicos .-> Tech[/chat/nodes e /chat/presence/]
+  CM -. regras de negocio do grupo .-> Owner
+```
+
+## Gerenciamento de Administradores
+
+```mermaid
+---
+title: Gerenciamento de Administradores
+---
+sequenceDiagram
+  participant Admin as Admin atual
+  participant FE as Frontend
+  participant BE as Backend
+  participant DB as PostgreSQL
+  participant Grupo as Participantes do grupo
+
+  Admin->>FE: clica em promover, rebaixar ou remover membro
+  FE->>BE: POST/DELETE /conversations/{id}/members/{userId}
+  BE->>DB: verifica conversation_members.role do admin atual
+  alt usuario atual e admin
+    BE->>DB: atualiza role ou removed_at do alvo
+    BE-->>Grupo: group.members.changed
+    BE-->>FE: 204
+  else usuario atual nao e admin
+    BE-->>FE: 403 FORBIDDEN
+  end
+
+  Note over BE,DB: Permissoes de grupo ficam no PostgreSQL, nao nas ACLs do ZooKeeper
+```
+
 ## Seguranca
 
 ```mermaid
@@ -266,11 +329,14 @@ flowchart LR
   BE[Backend HTTPS/WSS]
   ZK[ZooKeeper com digest auth + ACL]
   DB[(PostgreSQL)]
+  Roles[(conversation_members.role)]
 
   Browser -->|HTTPS| FE
   FE -->|HTTPS/WSS + cookie Secure HTTP-only| GW
   GW -->|HTTPS/WSS interno| BE
   BE -->|usuario/senha, bcrypt, sessao hash| DB
+  BE -->|autorizacao de grupos| Roles
+  Roles -->|owner/member| DB
   BE -->|digest auth| ZK
-  ZK -->|CREATOR_ALL_ACL em /chat| BE
+  ZK -->|CREATOR_ALL_ACL protege znodes tecnicos| BE
 ```
